@@ -1,0 +1,53 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+h1 {
+    margin-bottom: 20px;
+}
+
+#puzzle-container {
+    margin-top: 20px;
+    display: inline-block;
+}
+
+#hints-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+#hints-container > div {
+    margin: 0 20px;
+}
+
+table {
+    border-collapse: collapse;
+    margin: 0 auto;
+}
+
+td {
+    width: 40px;
+    height: 40px;
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid black;
+}
+
+td input {
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    font-size: 1.5rem;
+    border: none;
+    outline: none;
+}
+
+td.black {
+    background-color: black;
+}
+
+#words-container {
+    margin-top: 20px;
+}
