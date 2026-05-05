@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crossword — Žiga Korošak</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f3ef;
+      --text: #1a1a18;
+      --muted: #888880;
+      --accent: #2a4a3e;
+      --accent-light: #e8ede9;
+      --accent-mid: #c9d6cf;
+      --border: rgba(26,26,24,0.12);
+      --error: #b04a3a;
+      --error-light: #f3dcd6;
+      --gold: #c19a3a;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100%;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 60px 32px 40px;
+    }
+
+    .topnav {
+      display: flex;
+      align-items: baseline;
+      gap: 20px;
+      margin-bottom: 40px;
+      animation: fadeUp 0.5s ease both;
+      flex-wrap: wrap;
+    }
+    .back-link {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.06em;
+      transition: color 0.2s;
+    }
+    .back-link::before { content: '← '; }
+    .back-link:hover { color: var(--accent); }
+
+    .page-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(1.6rem, 5vw, 2.4rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    .puzzle-counter {
+      margin-left: auto;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .lang-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.15s;
+    }
+    .lang-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .word-nav {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .word-nav-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0 6px;
+      transition: color 0.15s, transform 0.1s;
+    }
+    .word-nav-btn:hover { color: var(--accent); }
+    .word-nav-btn:active { transform: scale(0.9); }
+
+    /* ── Layout ── */
+    .game {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 48px;
+      align-items: start;
+      animation: fadeUp 0.5s 0.1s ease both;
+    }
+
+    @media (max-width: 760px) {
+      .game { grid-template-columns: 1fr; gap: 28px; }
+    }
+
+    /* ── Grid ── */
+    .grid-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      align-items: center;
+      width: min(360px, 90vw);
+      justify-self: center;
+      margin: 0 auto;
+    }
+
+    .grid-wrap > * { width: 100%; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2px;
+      aspect-ratio: 1;
+      background: var(--text);
+      padding: 2px;
+      border-radius: 2px;
+      user-select: none;
+    }
+
+    .cell {
+      position: relative;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: clamp(1.2rem, 4.5vw, 1.6rem);
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: background 0.15s;
+      color: var(--text);
+    }
+
+    .cell.black {
+      background: var(--text);
+      cursor: default;
+    }
+
+    .cell.in-word { background: var(--accent-light); }
+    .cell.selected { background: var(--accent-mid); }
+
+    .cell.correct { color: var(--accent); }
+    .cell.wrong { color: var(--error); background: var(--error-light); }
+    .cell.revealed { color: var(--gold); }
+
+    .cell-num {
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.55rem;
+      font-weight: 400;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    /* ── Current hint ── */
+    .current-hint {
+      padding: 16px 20px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      min-height: 76px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .current-hint-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .current-hint-text {
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .swap-hint {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.06em;
+      transition: color 0.2s;
+      padding: 0 4px 0 8px;
+    }
+    .swap-hint:hover { color: var(--accent); }
+    .swap-hint::before { content: '↻ '; }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .btn {
+      background: none;
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+      color: var(--text);
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.15s;
+    }
+    .btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover {
+      background: var(--text);
+      border-color: var(--text);
+      color: #fff;
+    }
+
+    /* ── Hint lists ── */
+    .hints {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .hint-section h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    .hint-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .hint-list li {
+      display: flex;
+      gap: 12px;
+      padding: 10px 0;
+      border-top: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 0.78rem;
+      line-height: 1.5;
+      transition: color 0.15s;
+    }
+    .hint-list li:last-child { border-bottom: 1px solid var(--border); }
+    .hint-list li:hover { color: var(--accent); }
+    .hint-list li.active {
+      color: var(--accent);
+      background: var(--accent-light);
+      padding-left: 8px;
+      padding-right: 8px;
+      margin: 0 -8px;
+    }
+    .hint-list li.solved {
+      color: var(--muted);
+      text-decoration: line-through;
+    }
+    .hint-num {
+      flex-shrink: 0;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 24px;
+    }
+    .hint-list li.solved .hint-num { color: var(--muted); }
+
+    /* ── Win banner ── */
+    .win-banner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      background: var(--bg);
+      border: 1px solid var(--accent);
+      padding: 32px 40px;
+      border-radius: 3px;
+      text-align: center;
+      z-index: 200;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+    .win-banner.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+      pointer-events: auto;
+    }
+    .win-banner h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+    .win-banner p {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(245,243,239,0.7);
+      backdrop-filter: blur(3px);
+      z-index: 150;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* ── On-screen keyboard ── */
+    .keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      width: 100%;
+      align-self: center;
+      margin-top: 4px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .kb-row {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+    }
+    /* Indent mid row so its 9 keys match the size of top row's 10 keys */
+    .kb-row-mid {
+      padding: 0 5%;
+    }
+    .key {
+      flex: 1;
+      min-width: 0;
+      padding: 12px 0;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 400;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.1s, border-color 0.1s, transform 0.05s;
+      text-transform: uppercase;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .key:hover { border-color: var(--accent); color: var(--accent); }
+    .key:active, .key.pressed {
+      background: var(--accent-mid);
+      transform: scale(0.96);
+    }
+    /* Bottom row: spacer(1.5) + 7 letters(7) + BACK(1.5) = 10 units (matches top row) */
+    .kb-spacer { flex: 1.5; }
+    .key-wide { flex: 1.5; font-size: 0.95rem; }
+    .key-back { color: var(--error); }
+    .key-back:hover { border-color: var(--error); color: var(--error); }
+
+    @media (max-width: 480px) {
+      .key { padding: 14px 0; font-size: 0.95rem; }
+      .key-wide { font-size: 1.05rem; }
+      .keyboard { gap: 4px; }
+      .kb-row { gap: 3px; }
+      .kb-row-mid { padding: 0 5%; }
+    }
+
+    .footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    .footer a {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.03em;
+      transition: color 0.2s;
+    }
+    .footer a:hover { color: var(--accent); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.18); }
+      100% { transform: scale(1); }
+    }
+    .cell.pop { animation: pop 0.18s ease; }
+
+    @media (max-width: 480px) {
+      .page { padding: 32px 18px 32px; }
+      .game { gap: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <div class="topnav">
+      <a class="back-link" href="index.html" data-i18n="home">Domov</a>
+      <h1 class="page-title">Crossword</h1>
+      <span class="puzzle-counter" id="puzzle-counter">— / —</span>
+      <button class="lang-toggle" id="lang-toggle">EN</button>
+    </div>
+
+    <div class="game">
+      <div class="grid-wrap">
+        <div class="grid" id="grid"></div>
+
+        <div class="current-hint">
+          <div class="current-hint-label">
+            <span id="current-label">izberi polje</span>
+            <div class="word-nav">
+              <button class="word-nav-btn" id="prev-word" title="prejšnja beseda">‹</button>
+              <button class="word-nav-btn" id="next-word" title="naslednja beseda">›</button>
+              <button class="word-nav-btn" id="swap-dir" data-i18n-title="swapDirTitle" title="Zamenjaj smer">↕</button>
+              <button class="swap-hint" id="swap-hint" data-i18n-title="otherVersionTitle" title="Druga različica namiga"><span data-i18n="otherVersion">druga verzija</span></button>
+            </div>
+          </div>
+          <div class="current-hint-text" id="current-hint" data-i18n="tapToStart">Pritisni polje za začetek.</div>
+        </div>
+
+        <div class="keyboard" id="keyboard">
+          <div class="kb-row">
+            <button class="key" data-k="Q">Q</button>
+            <button class="key" data-k="W">W</button>
+            <button class="key" data-k="E">E</button>
+            <button class="key" data-k="R">R</button>
+            <button class="key" data-k="T">T</button>
+            <button class="key" data-k="Y">Y</button>
+            <button class="key" data-k="U">U</button>
+            <button class="key" data-k="I">I</button>
+            <button class="key" data-k="O">O</button>
+            <button class="key" data-k="P">P</button>
+          </div>
+          <div class="kb-row kb-row-mid">
+            <button class="key" data-k="A">A</button>
+            <button class="key" data-k="S">S</button>
+            <button class="key" data-k="D">D</button>
+            <button class="key" data-k="F">F</button>
+            <button class="key" data-k="G">G</button>
+            <button class="key" data-k="H">H</button>
+            <button class="key" data-k="J">J</button>
+            <button class="key" data-k="K">K</button>
+            <button class="key" data-k="L">L</button>
+          </div>
+          <div class="kb-row kb-row-bot">
+            <span class="kb-spacer" aria-hidden="true"></span>
+            <button class="key" data-k="Z">Z</button>
+            <button class="key" data-k="X">X</button>
+            <button class="key" data-k="C">C</button>
+            <button class="key" data-k="V">V</button>
+            <button class="key" data-k="B">B</button>
+            <button class="key" data-k="N">N</button>
+            <button class="key" data-k="M">M</button>
+            <button class="key key-wide key-back" data-k="BACK">⌫</button>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="btn" id="btn-check" data-i18n="check">Preveri</button>
+          <button class="btn" id="btn-reveal-letter" data-i18n="revealLetter">Razkrij črko</button>
+          <button class="btn" id="btn-reveal-word" data-i18n="revealWord">Razkrij besedo</button>
+          <button class="btn" id="btn-clear" data-i18n="clear">Počisti</button>
+          <button class="btn btn-primary" id="btn-new" data-i18n="new">Nova</button>
+        </div>
+      </div>
+
+      <div class="hints">
+        <div class="hint-section">
+          <h3 data-i18n="headingAcross">Vodoravno</h3>
+          <ul class="hint-list" id="across-hints"></ul>
+        </div>
+        <div class="hint-section">
+          <h3 data-i18n="headingDown">Navpično</h3>
+          <ul class="hint-list" id="down-hints"></ul>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <a href="../index.html">← Žiga Korošak</a>
+    </footer>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="win-banner" id="win-banner">
+    <h2 data-i18n="win">Bravo!</h2>
+    <p id="win-stats">Rešeno v —</p>
+    <button class="btn btn-primary" id="win-new" data-i18n="another">Še ena</button>
+  </div>
+
+  <script>
+    // === EMBEDDED PUZZLE DATA ===
+    const PUZZLES = [{"a":[{"w":"_here","h":["1. Fill in the blank: Everyw___ but not there.","2. A place where you currently are, with an underscore before it."]},{"w":"boney","h":["1. Adjective describing something lacking in flesh; think of a skeleton.","2. Describes a fish that's challenging to debone."]},{"w":"untie","h":["1. To release something from a knot or fastening.","2. Opposite action of what you do before you tie shoes."]},{"w":"torn_","h":["1. This describes something ripped or divided, with a trailing underscore.","2. A familiar feeling or fabric condition with an underscore at the end."]},{"w":"try__","h":["1. Three-letter verb meaning \"to attempt,\" ending with two blanks.","2. To make an effort, needing two more letters to complete."]}],"d":[{"w":"_butt","h":["1. Fill in the blank: Cigarette ____ - beginning with an underscore.","2. The end part of a joke or firearm, starting with an underscore."]},{"w":"honor","h":["1. High respect or esteem attributed to one's character.","2. The noun that represents integrity and ethical conduct."]},{"w":"entry","h":["1. The act of entering or a way in.","2. What you pass through to get inside."]},{"w":"rein_","h":["1. Controls for directing a horse, often an idiom for control when an underscore follows.","2. Missing a letter at the end, related to controlling or guiding something."]},{"w":"eye__","h":["1. This visual organ is central, with two underscores following.","2. A part typically paired with a needle, missing its last two letters."]}]},{"a":[{"w":"_aeon","h":["1. A long, indefinite period of time, often used in geological contexts.","2. Used in science fiction to mean an eternal or immeasurable span of time."]},{"w":"flame","h":["1. The visible, gaseous part of a fire.","2. Another term for a passionate romantic relationship."]},{"w":"reset","h":["1. Returning something to its initial state.","2. A computer can often do this to clear errors or problems."]},{"w":"oxen_","h":["1. Plural form of a large, domesticated bovine used in farming.","2. These animals are traditionally yoked in pairs for work purposes."]},{"w":"gal__","h":["1. Informal term for a girl or woman.","2. Can also refer to a certain unit of acceleration used in physics."]}],"d":[{"w":"_frog","h":["1. An amphibian that can often be seen leaping in wetlands.","2. Famous for its croaking sound, particularly during mating seasons."]},{"w":"alexa","h":["1. A virtual assistant developed by Amazon.","2. Known for playing music, setting alarms, and providing information when called."]},{"w":"easel","h":["1. A stand used by artists to support a canvas.","2. Essential equipment in a painter’s studio."]},{"w":"omen_","h":["1. An event regarded as a portent of future good or evil.","2. Often used in literature to foreshadow what’s to come."]},{"w":"net__","h":["1. A device made of woven strands to catch, hold, or detain.","2. Commonly used in various sports, such as tennis and volleyball."]}]},{"a":[{"w":"lath_","h":["1. A thin, flat strip of wood commonly used in construction.","2. Often used as a base to support plaster in ceilings or walls."]},{"w":"alias","h":["1. A false or assumed identity, often used in espionage.","2. Used by authors when they publish under a different name."]},{"w":"slant","h":["1. A perspective or angle, often in journalism or media.","2. When something is not level or has a tilt to it."]},{"w":"horde","h":["1. A large group of people; often used in the context of invaders.","2. A mass of individuals moving in an unorganized manner."]},{"w":"_wasp","h":["1. A stinging insect known for building paper-like nests.","2. Known for having a narrow waist, flying and causing a buzz."]}],"d":[{"w":"lash_","h":["1. To secure with a rope or to whip.","2. Often found in the context of securing a sail or reprimanding."]},{"w":"allow","h":["1. To permit or give permission for something to happen.","2. Often used in the context of giving someone the green light."]},{"w":"tiara","h":["1. A decorative jeweled headband worn by royalty.","2. Often worn by brides or pageant contestants."]},{"w":"hands_","h":["1. The plural of the body part at the end of your arms.","2. Can also refer to a clock part indicating time."]},{"w":"_step","h":["1. A movement made by lifting a foot and placing it in a new position.","2. It can also refer to progress in a process or procedure."]}]},{"a":[{"w":"alexa","h":["1. Name of a voice-controlled virtual assistant developed by Amazon.","2. Amazon's popular smart home assistant device."]},{"w":"golem","h":["1. A mythical creature made from clay or mud in Jewish folklore.","2. In Jewish legend, this animated being is created entirely from inanimate matter."]},{"w":"opine","h":["1. To express an opinion or belief.","2. Another term for sharing one's thoughts verbally."]},{"w":"__don","h":["1. Past tense verb often associated with clothing oneself.","2. A term you'd use when you've already put on clothes."]},{"w":"__end","h":["1. A term describing something happening in the past relative to now.","2. An adverb referring to a time just before now."]}],"d":[{"w":"ago__","h":["1. Phrase referring to a time period that has passed.","2. Often used to describe something that occurred in the past."]},{"w":"lop__","h":["1. Phrase often used to indicate the act of cutting something off.","2. A verb meaning to trim or cut something, especially from trees."]},{"w":"elide","h":["1. To omit or leave out in speech or writing.","2. A verb meaning to merge or absorb sounds in pronunciation."]},{"w":"xenon","h":["1. A noble gas element known for its use in neon lamps.","2. A rare, colorless, odorless element found in the atmosphere."]},{"w":"amend","h":["1. To make changes or improvements, especially legislative documents.","2. A verb often used in the context of altering or modifying text."]}]},{"a":[{"w":"inlet","h":["1. A narrow water passage between islands or leading inland from a larger body of water.","2. Often found on coastlines, a channel allowing water to flow in and out."]},{"w":"naive","h":["1. Lacking experience, wisdom, or judgment.","2. Describes someone who is easily deceived due to simplicity or innocence."]},{"w":"linen","h":["1. A fabric made from the fibers of the flax plant.","2. Known for its cool and fresh texture, often used in summer clothing."]},{"w":"event","h":["1. Something that happens at a given place and time.","2. A planned public or social occasion."]},{"w":"ten__","h":["1. A prefix indicating the number after nine and before eleven.","2. The first double-digit numeral."]}],"d":[{"w":"inlet","h":["1. A small arm of a sea, lake, or river.","2. Offers a place for a body of water to flow into the land."]},{"w":"naive","h":["1. Characterized by simplicity and lack of experience.","2. Often innocent or overly trusting due to inexperience."]},{"w":"linen","h":["1. A textile made from the fibers of the flax plant.","2. Commonly used in hot weather garments for its ability to keep cool."]},{"w":"even_","h":["1. A term for something flat or smooth.","2. Used to describe numbers divisible by two."]},{"w":"tent_","h":["1. A temporary shelter typically made from fabric.","2. Mostly used outdoors for camping or events."]}]},{"a":[{"w":"bleep","h":["1. The sound made by a digital device indicating an error or notification.","2. A short, high-pitched sound often associated with technology."]},{"w":"ladle","h":["1. A long-handled utensil used for serving soup or stew.","2. This tool is essential for pouring liquids during cooking."]},{"w":"organ","h":["1. A musical instrument with keys and pipes, often found in churches.","2. This large instrument is known for its complex sound and air-driven pipes."]},{"w":"oven_","h":["1. An enclosed compartment for baking or roasting food.","2. Essential kitchen appliance used to bake bread or roast meat."]},{"w":"mad__","h":["1. A term describing someone who is extremely angry or mentally ill.","2. Can denote fury or chaotic creativity, often linked with “mad scientist.”"]}],"d":[{"w":"bloom","h":["1. The process or period of a flower unfolding its petals.","2. Represents the peak beauty and productivity stage of a plant’s life."]},{"w":"larva","h":["1. The life stage of insects after it hatches from an egg, before becoming an adult.","2. Often found in caterpillars and maggots before they metamorphose."]},{"w":"edged","h":["1. Describes having a sharp side or a border.","2. Something that has sides or corners, possibly sharp ones."]},{"w":"elan_","h":["1. Enthusiastic vigor or liveliness; zest and style.","2. Represents energetic and confident style or flair."]},{"w":"pen__","h":["1. An instrument for writing or drawing with ink.","2. Essential everyday tool for scribes before the digital age."]}]},{"a":[{"w":"swill","h":["1. A mixture of liquid and food scraps fed to animals, especially pigs.","2. Slang for a cheap or inferior type of liquid, often referring to an alcoholic beverage."]},{"w":"cacao","h":["1. The primary ingredient from which chocolate is made.","2. Beans used to create powder for baking and confectioneries."]},{"w":"aging","h":["1. The process of becoming older and experiencing physiological and emotional changes over time.","2. In wine-making, the period during which wine develops its character in barrels or bottles."]},{"w":"meld_","h":["1. To merge or blend two or more things together.","2. A term used in some card games for a combination of cards."]},{"w":"pry__","h":["1. To force open or apart through leverage or pressure.","2. To inquire into someone's private affairs too closely."]}],"d":[{"w":"scamp","h":["1. A mischievous or playful young person.","2. A term used affectionately for someone who behaves naughtily but charmingly."]},{"w":"wager","h":["1. To risk something, usually money, on an uncertain outcome.","2. A formal agreement to bet on the result of a dispute or uncertain event."]},{"w":"icily","h":["1. To do something in a cold or unfriendly manner.","2. An adverb describing an action done with a chilling tone or attitude."]},{"w":"land_","h":["1. The solid part of the earth's surface not covered by water.","2. To come to a final resting place, often after flying or falling."]},{"w":"log__","h":["1. A large piece of wood cut from the trunk of a tree.","2. A record of events, often used in maritime or aviation contexts."]}]},{"a":[{"w":"_chat","h":["1. Online conversation using text.","2. A digital communication method often used on apps."]},{"w":"these","h":["1. Plural form of this.","2. Refers to a specific group close to the speaker."]},{"w":"raise","h":["1. To lift or elevate something.","2. Increase in salary or position."]},{"w":"ass__","h":["1. Slang term for the buttocks.","2. Informal word for donkey."]},{"w":"yet__","h":["1. To this point in time or so far.","2. Despite anything to the contrary."]}],"d":[{"w":"_tray","h":["1. A flat, shallow container for carrying things.","2. Surface used for serving food or drinks."]},{"w":"chase","h":["1. To pursue or follow rapidly.","2. Activity of trying to overtake something."]},{"w":"heist","h":["1. A robbery or act of stealing.","2. A planned act of theft."]},{"w":"ass__","h":["1. Describes an individual's backside humorously.","2. Term commonly used for donkeys or foolish people."]},{"w":"tee__","h":["1. Golfer's starting point on the course.","2. Often used as a stand for golf balls during play."]}]},{"a":[{"w":"apnea","h":["1. A condition where breathing repeatedly stops and starts during sleep.","2. Commonly associated with sleep disorders, involves pauses in breathing."]},{"w":"irons","h":["1. Hot metal devices used to smooth clothing wrinkles.","2. A common household appliance or type of golf club."]},{"w":"manes","h":["1. The long hair growing from the neck of a horse or a lion.","2. This term relates to the shaggy hair of some animals, mainly equines and lions."]},{"w":"_meme","h":["1. Viral fragment of culture shared widely on the internet.","2. It involves humorous content that spreads quickly online."]},{"w":"__tat","h":["1. Informal for a decorative ink design on the skin.","2. Slang term for a body modification using ink under the skin."]}],"d":[{"w":"aim__","h":["1. To direct efforts or an object toward a goal or target.","2. The act of directing or pointing something for accuracy."]},{"w":"pram_","h":["1. A wheeled conveyance for transporting infants.","2. Small wheeled vehicle used for babies, primarily in British English."]},{"w":"nonet","h":["1. A composition or group involving nine musicians or singers.","2. In music, this term refers to a set of nine performers."]},{"w":"enema","h":["1. A medical procedure for bowel cleansing with fluid.","2. This involves the injection of liquid into the rectum for cleansing or examination."]},{"w":"asset","h":["1. An item of value owned by a person or organization.","2. Can be a valuable resource or beneficial feature."]}]},{"a":[{"w":"shire","h":["1. A region often associated with hobbits and J.R.R. Tolkien's famous works.","2. An administrative district in England, often used as a suffix in place names."]},{"w":"today","h":["1. The current day in the context of time.","2. Used to describe what is happening right now or in the present."]},{"w":"alive","h":["1. Opposite of deceased or dead.","2. Breathing and functioning, referring to living beings."]},{"w":"sloe_","h":["1. A dark purple fruit of the blackthorn, used in gin.","2. The small, tart fruit found in hedgerows, often used in making a type of gin."]},{"w":"hymn_","h":["1. A religious song or ode, often sung in churches.","2. A musical composition of praise or worship."]}],"d":[{"w":"stash","h":["1. To store secretly or safeguard a collection.","2. A hidden supply of items, often for future use."]},{"w":"holly","h":["1. A festive plant with red berries and spiny leaves, often associated with Christmas.","2. A type of shrub known for its prickly green leaves and bright red berries."]},{"w":"idiom","h":["1. A phrase where the words have a meaning different from the literal translation.","2. A group of words established by usage having a figurative meaning."]},{"w":"raven","h":["1. A large, black bird known for its intelligence and mythological presence.","2. A bird that is often associated with omens and Edgar Allan Poe's famous poem."]},{"w":"eye__","h":["1. The organ that allows vision in most animals.","2. The part of the body used for seeing, usually located on the head."]}]},{"a":[{"w":"_cow_","h":["1. An animal commonly found on farms known for producing milk.","2. This domesticated ungulate is often associated with dairy products."]},{"w":"fade_","h":["1. To gradually become less distinct.","2. This word describes what happens when colors lose their brightness over time."]},{"w":"under","h":["1. This preposition indicates something is below or beneath.","2. A word that often precedes 'pressure' or 'the sea'."]},{"w":"needy","h":["1. Describes someone or something lacking essentials.","2. This term often describes people requiring assistance or support."]},{"w":"__rye","h":["1. A type of grain commonly used in bread and whiskey production.","2. Often paired with whiskey, this grain is also found in bread."]}],"d":[{"w":"_fun_","h":["1. An activity that provides amusement or enjoyment.","2. Associated with happiness and playful times."]},{"w":"cane_","h":["1. A walking stick or a plant that produces sugar.","2. Often used by the elderly for support while walking."]},{"w":"odder","h":["1. Comparative form of an adjective meaning strange or unusual.","2. When something is even more strange than 'odd'."]},{"w":"weedy","h":["1. Infested with unwanted plants, such as dandelions or thistles.","2. Describes a garden or area overrun with undesirable vegetation."]},{"w":"__rye","h":["1. A grain also known in the title of a J.D. Salinger novel.","2. This grain is commonly used in bread and whiskey."]}]},{"a":[{"w":"drown","h":["1. To lose life by being submerged in and inhaling water.","2. Often happens if you can't swim and fall into deep water."]},{"w":"eerie","h":["1. Strange and frightening.","2. Similar to spooky or unsettling, especially places or sounds."]},{"w":"apart","h":["1. Separated by distance or time.","2. Opposite of together; frequently describes physical distance."]},{"w":"fete_","h":["1. A festive celebration or party.","2. Often includes music, dancing, and lots of enjoyment."]},{"w":"_led_","h":["1. Past tense of leading.","2. Rhymes with \"bed\" and \"fed\"; indicates guidance in the past."]}],"d":[{"w":"deaf_","h":["1. Lacking the power of hearing.","2. Can be partial or complete; affects the ability to perceive sound."]},{"w":"repel","h":["1. Drive away; cause aversion.","2. What bug spray does to mosquitoes."]},{"w":"orate","h":["1. To speak in a formal and often eloquent manner.","2. Often done in public by politicians or spokespersons."]},{"w":"wired","h":["1. Equipped with internet or interconnected systems.","2. A term often used to describe someone full of nervous energy or excitement."]},{"w":"net__","h":["1. An openwork fabric or structure.","2. Used in sports like basketball, tennis, and fishing alike."]}]},{"a":[{"w":"_kob_","h":["1. An antelope found in the African savanna.","2. This animal shares its name with a three-letter word starting and ending with 'k'."]},{"w":"valet","h":["1. A person who parks cars for hotel or restaurant patrons.","2. Someone who assists with personal services, especially in hospitality."]},{"w":"alive","h":["1. Opposite of dead.","2. Breathing and having life."]},{"w":"never","h":["1. At no time.","2. Opposite of always."]},{"w":"__elm","h":["1. A type of deciduous tree.","2. Known for its strong wood, this tree is often found lining streets."]}],"d":[{"w":"_van_","h":["1. A kind of vehicle often used for transporting goods or people.","2. Typically box-shaped, used in logistics or family travel."]},{"w":"kale_","h":["1. A type of green leafy vegetable popular in salads.","2. Known for its health benefits and curly, dense leaves."]},{"w":"olive","h":["1. A small, oily fruit, often green or black, used in cooking and oil production.","2. Known for their pit, they are often pressed to create a cooking oil."]},{"w":"bevel","h":["1. A cut at an angle that is not 90 degrees to the surface or edge.","2. Used in carpentry and design to create slanted angles on surfaces."]},{"w":"_term","h":["1. A defined period of time, especially in reference to academic sessions.","2. Often used to describe the completion date range in contracts."]}]},{"a":[{"w":"bog","h":["1. A wet, spongy area of land that may be covered in water.","2. A term for a type of swamp, especially in cooler climates."]},{"w":"llama","h":["1. A domesticated South American animal known for its wool.","2. Related to the alpaca, this animal is commonly found in the Andes mountains."]},{"w":"eaten","h":["1. What happens to food after it is consumed orally.","2. Past participle of a verb meaning to consume food."]},{"w":"among","h":["1. A preposition indicating involvement or participation with others.","2. In the midst of a group or a collection."]},{"w":"den","h":["1. A cozy, secluded room or space within a home.","2. The private lair of a wild carnivorous animal."]}],"d":[{"w":"lead","h":["1. To be in charge or guide a group, organization, or movement.","2. A soft, heavy, ductile metal with the symbol Pb."]},{"w":"lame","h":["1. Incapable of normal locomotion due to injury or illness.","2. An adjective describing something weak, unsatisfactory, or unimpressive."]},{"w":"baton","h":["1. A thin stick used by a conductor to direct an orchestra.","2. A short stick passed between runners in a relay race."]},{"w":"omen","h":["1. A phenomenon or event viewed as a sign of future good or evil.","2. A prophetic sign or indication."]},{"w":"gang","h":["1. A group of individuals who associate for criminal or antisocial purposes.","2. A band or clique that may operate illicit activities."]}]},{"a":[{"w":"mount","h":["1. To climb or ascend a peak.","2. A structure used to display or support something."]},{"w":"apnea","h":["1. A condition involving temporary cessation of breathing during sleep.","2. It often requires a CPAP machine for treatment."]},{"w":"defer","h":["1. To postpone or delay an action.","2. Often used with consideration or judgment."]},{"w":"arid_","h":["1. Extremely dry and lacking in moisture.","2. Describes land that supports very little vegetation."]},{"w":"mat__","h":["1. A flat piece of material used to protect surfaces or provide comfort underfoot.","2. Typically found at doorways as a welcome mat."]}],"d":[{"w":"madam","h":["1. A polite term used to address a woman.","2. The female equivalent of \"sir.\""]},{"w":"opera","h":["1. A dramatic work combining singing, music, and sometimes dance.","2. Known for its elaborate costumes and sets."]},{"w":"unfit","h":["1. Not in good physical shape.","2. Lacking the necessary qualities or skills for a certain purpose."]},{"w":"need_","h":["1. To require something essential or desirable.","2. Left incomplete when something is urgently desired."]},{"w":"tar__","h":["1. A sticky black substance used in construction and repair.","2. Derived from the distillation of organic material."]}]},{"a":[{"w":"swing","h":["1. A movement back and forth suspended from a pivot point.","2. Commonly found in playgrounds and associated with a pendulum-like motion."]},{"w":"minor","h":["1. A term describing anything lesser in size, extent, or significance.","2. Often used in music to denote a type of scale or chord."]},{"w":"untie","h":["1. To release something that has been fastened or knotted.","2. An action often resulting in freeing shoelaces or hair."]},{"w":"geese","h":["1. A plural term for a type of large waterbird typically associated with honking sounds.","2. Known for their migratory V formations in the skies."]},{"w":"__red","h":["1. A primary color seen at two ends of the visible spectrum.","2. Can symbolize passion, danger, or stop."]}],"d":[{"w":"smug_","h":["1. Self-satisfied, often in a way that annoys others.","2. An adjective for a person who thinks they know better than everyone else."]},{"w":"wine_","h":["1. An alcoholic drink made from fermented grapes.","2. Comes in red, white, and rosé varieties, often paired with meals."]},{"w":"inter","h":["1. A verb meaning to place a body in a grave or tomb.","2. Often used to describe the act of burial."]},{"w":"noise","h":["1. Unwanted sound that disrupts or interferes.","2. Can be described as any non-harmonious or loud sound."]},{"w":"greed","h":["1. An insatiable and selfish desire, especially for wealth or power.","2. A major theme in many moral tales and fables."]}]},{"a":[{"w":"fumed","h":["1. Angrily expressed smoke or vapors.","2. Past tense of an act of being visibly angry."]},{"w":"irate","h":["1. Feeling very angry or furious.","2. An intense level of anger; very annoyed."]},{"w":"tithe","h":["1. A portion of income given as a donation, traditionally 10%.","2. Obligation or offering often associated with religious practices."]},{"w":"_need","h":["1. Necessity or requirement for something.","2. Essential requirement or obligation."]},{"w":"_err_","h":["1. To make a mistake or be incorrect.","2. Commit an error or blunder."]}],"d":[{"w":"fit__","h":["1. A sudden burst of emotion or activity.","2. Suitably well or appropriate."]},{"w":"urine","h":["1. Liquid waste product excreted by kidneys.","2. Waste fluid produced and excreted by kidneys."]},{"w":"mater","h":["1. Another word for mother, often used affectionately.","2. Affectionate or formal term for one's mother."]},{"w":"ether","h":["1. A volatile liquid once used as an anesthetic.","2. Highly flammable liquid formerly used in medicine."]},{"w":"deed_","h":["1. A legal document regarding ownership of property.","2. Document transferring ownership, often of land."]}]},{"a":[{"w":"_car_","h":["1. A type of vehicle that requires four wheels.","2. Often used to commute on roads."]},{"w":"goner","h":["1. A term for something or someone beyond saving.","2. Often used when referring to an inevitable end."]},{"w":"arise","h":["1. To come up or emerge.","2. Often happens when you wake in the morning."]},{"w":"based","h":["1. Rooted or founded on something.","2. Often used to denote fundamental support."]},{"w":"_let_","h":["1. To allow or permit.","2. Often accompanying someone's freedom to do something."]}],"d":[{"w":"_gab_","h":["1. To talk a lot or chatter.","2. Something people often do when gossiping."]},{"w":"coral","h":["1. Marine invertebrates forming colorful reefs.","2. Often associated with vibrant underwater ecosystems."]},{"w":"anise","h":["1. A licorice-flavored herb or spice.","2. Often used in European cooking for its flavor."]},{"w":"reset","h":["1. To start again from the beginning.","2. Especially common in technology and instruments."]},{"w":"_red_","h":["1. A primary color similar to crimson or scarlet.","2. Often denotes danger or love."]}]},{"a":[{"w":"widen","h":["1. To make something broader or more extensive.","2. Expand your scope or understanding."]},{"w":"anise","h":["1. A spice known for its licorice flavor.","2. Herb often used in cooking and baking, especially in Mediterranean dishes."]},{"w":"tense","h":["1. A state of being stretched tight or anxious.","2. Form of a verb indicating time, like past, present, or future."]},{"w":"tread","h":["1. To walk or step on something.","2. Action involved in stepping or leaving footprints."]},{"w":"_try_","h":["1. Attempt to do or achieve something.","2. Make an effort to accomplish a task or goal."]}],"d":[{"w":"watt_","h":["1. A unit of power in the International System of Units.","2. Measurement of electrical power related to energy and time."]},{"w":"inert","h":["1. Lacking the ability or strength to move.","2. Chemically inactive or not reactive."]},{"w":"diner","h":["1. Casual restaurant or a type of train car serving food.","2. Place where meals are served to customers."]},{"w":"essay","h":["1. A short piece of writing on a particular subject.","2. Often a school assignment that involves composition."]},{"w":"need_","h":["1. Express necessity or requirement for something.","2. Conditions or situations requiring immediate attention."]}]},{"a":[{"w":"plot_","h":["1. A secret plan or scheme to accomplish a purpose.","2. The main events of a play, novel, or movie woven together."]},{"w":"aired","h":["1. Something that has been broadcast on radio or television.","2. Exposed to the atmosphere for freshening or ventilation."]},{"w":"spare","h":["1. Additional or extra, often used in context with car tires.","2. To give money, time, or effort without inconvenience."]},{"w":"titre","h":["1. A measure of concentration in a chemical solution.","2. Often used to determine the strength of an antibody or antigen."]},{"w":"_dead","h":["1. Unable to move, feel, or react.","2. The opposite of alive."]}],"d":[{"w":"past_","h":["1. No longer current; belonged to a former time.","2. Beyond a specified point in time or place."]},{"w":"lipid","h":["1. A group of naturally occurring molecules including fats.","2. Essential for cellular structure but also linked to cholesterol."]},{"w":"orate","h":["1. To speak, particularly in an eloquent or formal manner.","2. Often done at ceremonies by someone giving a speech."]},{"w":"terra","h":["1. Latin word for \"earth\" or \"ground.\"","2. A term used in geography and science for land."]},{"w":"_deed","h":["1. A legal document regarding property ownership.","2. An action that is performed intentionally."]}]},{"a":[{"w":"rheum","h":["1. A thin discharge from mucous membranes, especially of the nose or eyes.","2. This word describes the fluid sometimes wiped away from your eyes upon waking."]},{"w":"penne","h":["1. A type of pasta shaped like tubes with angled ends.","2. A popular pasta often used in dishes like arrabbiata or with a vodka sauce."]},{"w":"masse","h":["1. A pool shot where the cue ball moves in a curve.","2. A French term used in billiards to refer to a specific type of spin shot."]},{"w":"_duet","h":["1. A performance by two musicians or singers.","2. This term refers to a composition for two performers, often seen in concerts."]},{"w":"_yet_","h":["1. A word often used to denote something that hasn't happened but is expected.","2. This adverb indicates something still to occur or a possibility in the future."]}],"d":[{"w":"rpm__","h":["1. Abbreviation for a measure of rotational speed, often used with engines.","2. A term used to describe how many times something spins in a minute."]},{"w":"heady","h":["1. Causing a feeling of excitement or dizziness.","2. Often describes an experience or aroma that is intoxicating or exhilarating."]},{"w":"ensue","h":["1. To happen or occur afterward or as a result.","2. This verb describes the result that follows a particular event or action."]},{"w":"unset","h":["1. Refers to something not fixed or placed in a specific arrangement.","2. The opposite of \"set\", indicating lack of position or stability."]},{"w":"meet_","h":["1. Come together at a particular place or time.","2. When two or more people come into contact for discussion or encounter."]}]},{"a":[{"w":"paid_","h":["1. Completing \"paid\" with a musical beat enhancer.","2. Wage receipt often involves getting \"paid\" in this."]},{"w":"agree","h":["1. To conciliate differing views, parties may reach this consensus.","2. When opinions align, two or more people may do this."]},{"w":"crony","h":["1. Informal term for a close, sometimes political associate.","2. A \"crony\" is often seen in discussions of nepotism."]},{"w":"tense","h":["1. Grammatical form expressing time in verbs.","2. Situation filled with anxious or strained anticipation."]},{"w":"_eyed","h":["1. \"Wide\" or \"eagle\" could be properly aligned with this.","2. In descriptions of vision, both \"sharp\" and \"red\" can pair with it."]}],"d":[{"w":"pact_","h":["1. Formal agreement often sealed with a handshake or signature.","2. Allies may sign this in times of peace."]},{"w":"agree","h":["1. Achieving concurrence typically incites this verbal accord.","2. When opinions mirror each other, people usually do this."]},{"w":"irony","h":["1. An outcome sharply opposite to what's expected.","2. A figure of speech with opposite intended meanings."]},{"w":"dense","h":["1. A material with closely packed particles is considered this.","2. Often refers to people who are slow to understand."]},{"w":"_eyed","h":["1. Often matched with 'eagle' for keen vision expressions.","2. Associated with phrases like \"blue\" or \"starry.\""]}]},{"a":[{"w":"_chef","h":["1. A professional cook, especially the chief cook in a restaurant or hotel.","2. Title for someone who manages a kitchen and oversees food preparation."]},{"w":"_reap","h":["1. To gather or harvest crops from the land.","2. To receive a return or reward as a result of one's actions."]},{"w":"tears","h":["1. Drops of saline that flow from the eyes, often due to emotions.","2. Liquid produced by emotions such as sadness or joy."]},{"w":"add__","h":["1. To join or combine numbers or elements to each other.","2. The mathematical operation of combining quantities."]},{"w":"toy__","h":["1. An object for children to play with and amuse themselves.","2. An item created for amusement, often used by children."]}],"d":[{"w":"__tat","h":["1. An informal term for a tattoo, often used in casual contexts.","2. Slang term for inked art on the skin."]},{"w":"credo","h":["1. A statement of the beliefs or aims that guide someone's actions.","2. A formal expression of faith or principles."]},{"w":"heady","h":["1. Something that is intoxicating or exhilarating.","2. Producing a feeling of high excitement or euphoria."]},{"w":"ear__","h":["1. The organ of hearing, situated on either side of the head.","2. An appendage responsible for auditory perception."]},{"w":"fps__","h":["1. Abbreviation referring to Frames Per Second, especially in video contexts.","2. Acronym indicating the measurement of display frame rate."]}]},{"a":[{"w":"frog_","h":["1. A small green amphibian that can jump great distances.","2. Often found in ponds and known for their ribbit sound."]},{"w":"rope_","h":["1. A strong, thick strand of material used to pull or tie things securely.","2. Essential equipment for rock climbing and sailing."]},{"w":"ovine","h":["1. Relating to sheep or ewes.","2. Similar to the wool-producing animals found on farms."]},{"w":"genre","h":["1. A category for artistic or literary compositions.","2. Divides music, books, and films based on style or subject."]},{"w":"__eel","h":["1. A long, slender fish often found in freshwater and saltwater.","2. A creature slippery enough to inspire a phrase about being elusive."]}],"d":[{"w":"frog_","h":["1. A four-legged creature often heralding the start of spring with croaks.","2. Jumps between lily pads and stars in fairy tales."]},{"w":"rove_","h":["1. To wander or travel constantly without a fixed destination.","2. Explorers and adventurers are known to do this."]},{"w":"opine","h":["1. To express one's thoughts or beliefs aloud.","2. What critics do when reviewing a new work."]},{"w":"genre","h":["1. Frames the themes and forms followed in media.","2. A movie falls into this category of type."]},{"w":"__eel","h":["1. Creatures often electrifying in nature with a slippery reputation.","2. They slither through water instead of on land."]}]},{"a":[{"w":"_frog","h":["1. A common amphibian associated with rainy weather.","2. An animal known for its leaping abilities and croaking sound."]},{"w":"flame","h":["1. The visible part of a fire that provides light.","2. A hot, glowing body of ignited gas generated by something on fire."]},{"w":"lapel","h":["1. The part on a jacket that frames the neckline and is often folded back.","2. Found on a suit, this piece is often accented by a pin or flower."]},{"w":"akin_","h":["1. Similar in nature or character; having a shared ancestry.","2. Closely related or similar in functions or characteristics."]},{"w":"wed__","h":["1. To unite in marriage or matrimony.","2. The act traditionally involving vows and rings."]}],"d":[{"w":"_flaw","h":["1. A defect or imperfection in something.","2. A small fault or defect in a product or theory."]},{"w":"flake","h":["1. A small, loose, and thin piece of something, like snow.","2. A piece of something thin and easily crumbled off."]},{"w":"rapid","h":["1. Moving very quickly or fast.","2. Swift movement as found in fast-flowing water."]},{"w":"omen_","h":["1. A sign or indication of a future event.","2. Considered a harbinger of good or bad luck."]},{"w":"gel__","h":["1. A jelly-like substance used often in styling hair or medical applications.","2. A semi-solid or thickened liquid substance."]}]},{"a":[{"w":"find_","h":["1. To discover or identify something, especially for the first time.","2. What one might do upon encountering a lost item."]},{"w":"odor_","h":["1. A distinctive smell, often considered unpleasant.","2. This might alert you to a skunk nearby."]},{"w":"woman","h":["1. An adult female human.","2. Opposite of man in terms of gender."]},{"w":"llama","h":["1. A South American animal known for its wool and carrying loads.","2. Related to the alpaca and used in trekking and farming."]},{"w":"__day","h":["1. A unit of time equivalent to 24 hours.","2. Appears in the expressions holiday, birthday, and Monday."]}],"d":[{"w":"fowl_","h":["1. A term used primarily for birds raised for their meat or eggs.","2. Includes animals such as chickens and ducks."]},{"w":"idol_","h":["1. A representation or object of worship or admiration.","2. What pop stars and famous actors might be called by fans."]},{"w":"nomad","h":["1. A person with no fixed residence who moves from place to place.","2. Often found in deserts or vast open spaces, constantly on the move."]},{"w":"drama","h":["1. A genre of narrative fiction or semi-fiction intended for serious viewing.","2. Often involves intense conflict and strong emotions."]},{"w":"__nay","h":["1. An old-fashioned way to say no.","2. Often paired with \"yea\" in voting or decisions."]}]},{"a":[{"w":"bongo","h":["1. A type of drum often used in Latin music.","2. An instrument played with hands, often seen in pairs."]},{"w":"aloof","h":["1. Describes someone who is emotionally distant or detached.","2. This term is used for someone disinterested or unengaged."]},{"w":"idiot","h":["1. A term used to describe a very foolish person.","2. An offensive term for someone perceived as very stupid."]},{"w":"less_","h":["1. A comparative term meaning \"lower quantity.\"","2. Used to indicate a smaller amount."]},{"w":"_rye_","h":["1. A type of grain used in bread and whiskey.","2. This word can be found in a phrase about a specific whiskey type."]}],"d":[{"w":"bail_","h":["1. A term used for releasing someone from custody, often for a fee.","2. This term is associated with leaving abruptly or financial guarantee."]},{"w":"older","h":["1. Comparatively more advanced in age.","2. This term refers to something more aged than another."]},{"w":"noisy","h":["1. Describes a place filled with a lot of sound.","2. Often used to refer to unpleasant, loud environments."]},{"w":"goose","h":["1. A large bird known for its migratory V formations.","2. Associated with a classic Christmas dish and nursery rhyme."]},{"w":"oft__","h":["1. An old-fashioned term meaning frequent or often.","2. Used primarily in poetry for \"many times.\""]}]},{"a":[{"w":"_burn","h":["1. A word that follows 'sun' and 'fire' in expressions relating to heat.","2. An action that happens to paper when it catches fire."]},{"w":"canoe","h":["1. A small, narrow boat pointed at both ends and typically propelled by paddling.","2. A type of watercraft often used for leisurely trips on rivers or lakes."]},{"w":"ascot","h":["1. A type of necktie that is worn tucked into a shirt.","2. A formal accessory often seen at race events in England."]},{"w":"belt_","h":["1. An accessory that holds up pants or skirts.","2. An item often used to cinch the waist in clothing."]},{"w":"_des_","h":["1. This word often precedes 'ire' in nature documentaries about sandy landscapes.","2. It is a prefix meaning 'from' or 'down from' usually in geographical or scientific context."]}],"d":[{"w":"_cab_","h":["1. A short word for a vehicle used for hire that takes passengers to a specified destination.","2. Slang term often used for a taxi."]},{"w":"based","h":["1. A foundation or starting point for arguments or calculations.","2. A term often used to describe foundational place of residence or operation."]},{"w":"uncle","h":["1. A family member who is your parent's brother.","2. The word children sometimes use as a way to admit defeat."]},{"w":"roots","h":["1. Underground parts of plants that absorb nutrients and water.","2. This term often refers to one's heritage or beginnings."]},{"w":"net__","h":["1. A device used to catch fish or birds, made of intersecting threads.","2. The word used for when an athlete scores in various ball games."]}]},{"a":[{"w":"__bun","h":["1. A small rounded roll often used for sandwiches.","2. A hairstyle where hair is twisted and wound into a round shape."]},{"w":"_cite","h":["1. To quote or reference a source of information.","2. Mention as an example or proof in a scholarly or legal context."]},{"w":"roots","h":["1. The part of a plant that attaches it to the ground and conveys water.","2. The basic, essential core or foundation of something."]},{"w":"unmet","h":["1. Not achieved or fulfilled, often used with expectations.","2. A condition of goals or needs that remain unsatisfied."]},{"w":"beer_","h":["1. A popular alcoholic beverage made from barley, hops, and yeast.","2. Often served in bottles or cans and enjoyed at pubs or home for relaxation."]}],"d":[{"w":"__rub","h":["1. To move one's hand or a cloth back and forth on the surface with pressure.","2. The action of applying pressure to a surface to clean or polish it."]},{"w":"_cone","h":["1. A geometric shape that tapers smoothly from a flat base to a point.","2. Used to describe a structure with a circular base and a single vertex."]},{"w":"biome","h":["1. A large community of flora and fauna adapting to the environment.","2. A regional ecosystem characterized by distinctive climate and wildlife."]},{"w":"utter","h":["1. To speak or articulate words or sounds.","2. To express audibly; to voice or pronounce."]},{"w":"nest_","h":["1. A structure where birds lay eggs and raise their young.","2. A snug, cozy dwelling or sheltered place."]}]},{"a":[{"w":"arced","h":["1. This word describes a shape similar to a segment of a circle.","2. A trajectory often taken by projectiles in motion."]},{"w":"weave","h":["1. This word describes the action of interlacing threads to form fabric.","2. It can also refer to maneuvering skillfully through traffic."]},{"w":"often","h":["1. This describes frequency more than sometimes, but less than always.","2. A word indicating a habitual action."]},{"w":"keen_","h":["1. A word indicating enthusiasm or sharpness, often followed by 'on'.","2. Describes someone eager or who perceives acutely."]},{"w":"err__","h":["1. This is a root for words meaning to make a mistake.","2. Prefix often used when referring to deviation from accuracy."]}],"d":[{"w":"awoke","h":["1. Past tense of a word meaning to become conscious from sleep.","2. To have roused or been roused from slumber."]},{"w":"refer","h":["1. To direct someone to a source of information for guidance.","2. To mention or allude to something."]},{"w":"cater","h":["1. This word means to provide food and services, often for events.","2. To supply what is needed or required, especially at weddings or parties."]},{"w":"even_","h":["1. A term for numbers divisible by two.","2. Used to describe a flat or uniform surface."]},{"w":"den__","h":["1. A cozy room in a house often used for relaxation or study.","2. Where lions live in the wild."]}]},{"a":[{"w":"_glib","h":["1. A term describing speech that is fluent but insincere.","2. A word that rhymes with \"rib\" and relates to superficial eloquence."]},{"w":"erase","h":["1. To remove or wipe out entirely.","2. What you do with a pencil mark when you need to correct it."]},{"w":"rinse","h":["1. To wash lightly with water to remove soap or dirt.","2. What you must do after applying shampoo to your hair."]},{"w":"recur","h":["1. To happen again or repeatedly.","2. This term describes an event that keeps cycling back periodically."]},{"w":"_fee_","h":["1. A payment made for professional services or admission.","2. Often a charge added to services like tuition or entry."]}],"d":[{"w":"_err_","h":["1. To make a mistake or be incorrect.","2. An action verb that is the opposite of being right."]},{"w":"grief","h":["1. Deep sorrow or anguish, especially caused by death.","2. This overwhelming feeling might occur after losing a loved one."]},{"w":"lance","h":["1. A weapon resembling a spear used by knights in jousting.","2. Medieval pole weapon used by cavalry in warfare."]},{"w":"issue","h":["1. An important topic or problem for debate or discussion.","2. Often referred to as a \"problem\" or \"concern\" in various contexts."]},{"w":"beer_","h":["1. A popular alcoholic beverage made from fermented grains.","2. This drink is often served cold and comes in varieties like lager and ale."]}]},{"a":[{"w":"_grub","h":["1. A type of larva, often seen in soil or wood.","2. Informal term for food or a meal."]},{"w":"poise","h":["1. A graceful and elegant bearing in a person.","2. The ability to remain calm and steady."]},{"w":"loved","h":["1. Felt deep affection or passion for.","2. Past tense of a common verb meaning to admire."]},{"w":"user_","h":["1. A person who operates or interacts with a system.","2. Someone who takes advantage of something or someone."]},{"w":"set__","h":["1. To place something in a specific position.","2. A collection of objects or numbers."]}],"d":[{"w":"_plus","h":["1. The mathematical term for addition.","2. Used to denote an advantage or benefit."]},{"w":"goose","h":["1. A large waterbird with a long neck.","2. A term sometimes used for playful pinching or poking."]},{"w":"rivet","h":["1. A metal pin for fastening pieces together.","2. To hold someone's attention firmly."]},{"w":"user_","h":["1. The person-operated account on a device or software.","2. Someone who takes advantage of another's kindness."]},{"w":"bed__","h":["1. A piece of furniture for sleeping or resting.","2. The base or layer upon which something rests."]}]},{"a":[{"w":"log__","h":["1. A term used to describe a record of events, often used in reference to trees.","2. The beginning of this word shares its meaning with a large fallen tree or a diary."]},{"w":"exalt","h":["1. To elevate someone or something in rank or honor.","2. Opposite of demote."]},{"w":"titer","h":["1. A measurement in a laboratory to determine the concentration of a substance.","2. Commonly used term in blood testing for antibodies."]},{"w":"_defy","h":["1. To challenge authority or refuse to obey.","2. Often associated with rebellion or resistance."]},{"w":"_est_","h":["1. Suffix used in forming the superlative.","2. Often seen in phrases that indicate the highest degree."]}],"d":[{"w":"let__","h":["1. To allow or permit.","2. Often used to signify giving permission."]},{"w":"oxide","h":["1. A chemical compound with oxygen and one other element.","2. Common result of metal reacting with oxygen."]},{"w":"gates","h":["1. A movable barrier typically used at entrances.","2. Often considered as entry or exit points."]},{"w":"_left","h":["1. The opposite direction of right.","2. Indicates a direction or position."]},{"w":"_try_","h":["1. To attempt or exert effort.","2. Often followed by 'again'."]}]},{"a":[{"w":"word 1","h":["1. This physical practice originates from ancient India and involves exercises, meditation, and breathing.","2. It's a popular form of exercise that aims for bodily and mental well-being."]},{"w":"word 2","h":["1. Means to flip or turn something upside down or move beyond an obstacle.","2. Often used to describe exceeding expectations or surpassing limits."]},{"w":"word 3","h":["1. Considered an activity cultivated on ice or at a park, performed on boards.","2. Can be a winter sport where participants glide on blades."]},{"w":"word 4","h":["1. Often considered a faithful animal companion.","2. A beloved animal, taken care of and kept at home."]},{"w":"word 5","h":["1. Known as a type of beer, lighter in flavor compared to stout.","2. Popular at pubs, often ordered by the pint."]}],"d":[{"w":"word 1","h":["1. A wellness retreat often offering massages and beauty treatments.","2. You might visit here for relaxation or a facial."]},{"w":"word 2","h":["1. A rural, unsophisticated person, often depicted in folklore.","2. A character often portrayed as naive or simple."]},{"w":"word 3","h":["1. Egg-shaped or describing a shape similar to an ellipse.","2. Refers to objects with a wide middle and tapering ends."]},{"w":"word 4","h":["1. Means to obtain or acquire something.","2. Opposite of lose or surrender."]},{"w":"word 5","h":["1. A word denoting a state of presence in a location.","2. Used to express existence in a particular place or state of being."]}]},{"a":[{"w":"beach","h":["1. A sandy or pebbly shore by a body of water, especially the ocean.","2. A place where people go to swim, sunbathe, or relax by the sea."]},{"w":"argue","h":["1. To engage in a verbal dispute or disagreement.","2. Often involves presenting reasons for or against something."]},{"w":"yearn","h":["1. To have an intense feeling of longing for something.","2. Often associated with a strong desire or wish."]},{"w":"_cps_","h":["1. Abbreviation commonly used in various contexts, like \"cost per second\".","2. Can stand for technical or organization terms, check the context."]},{"w":"_tee_","h":["1. A short, vertical peg used in golf to support the ball.","2. Often used to start a game or drive in golf."]}],"d":[{"w":"bay__","h":["1. A broad inlet of the sea where the land curves inward.","2. Often used to describe a sheltered coastal body of water."]},{"w":"erect","h":["1. To build or put something directly upright or vertical.","2. Often used to describe the construction of buildings or structures."]},{"w":"agape","h":["1. With the mouth wide open, often in surprise or wonder.","2. Can also describe an expression of awe or amazement."]},{"w":"curse","h":["1. To utter offensive words in anger or frustration.","2. Could be used to describe casting a spell with intent to harm."]},{"w":"hen__","h":["1. A female bird, especially of the domestic chicken species.","2. Often known for laying eggs in farm settings."]}]},{"a":[{"w":"join_","h":["1. This word means to come together or connect.","2. Often used in context with clubs or events."]},{"w":"order","h":["1. An organized or arranged sequence.","2. What you make at a restaurant."]},{"w":"salve","h":["1. An ointment used for healing or soothing the skin.","2. Used in medicine as a soothing balm."]},{"w":"steed","h":["1. A horse, especially a spirited one.","2. Often referred to in medieval contexts."]},{"w":"_err_","h":["1. To make a mistake.","2. A step away from correct judgment."]}],"d":[{"w":"joss_","h":["1. This word is commonly associated with a religious or spiritual figurine.","2. Often paired with 'stick' in Eastern rituals."]},{"w":"orate","h":["1. To make a formal speech.","2. What politicians do on a stage."]},{"w":"idler","h":["1. A person who lives without working.","2. Synonym for 'lounger.'"]},{"w":"never","h":["1. At no time in the past or future.","2. Opposite of 'always.'"]},{"w":"_red_","h":["1. A primary color.","2. What a stop sign indicates."]}]},{"a":[{"w":"arm__","h":["1. A limb of the body used for lifting or holding.","2. Part of a sleeve or covering for the arm."]},{"w":"loads","h":["1. Multiple heavy weights or burdens carried at once.","2. Abundant amount of something placed onto or into a vehicle or container."]},{"w":"april","h":["1. The fourth month of the year.","2. A month known for its showers that bring May flowers."]},{"w":"servo","h":["1. A device or mechanism used for automatic control.","2. A component that controls movement in machines or robots."]},{"w":"__yet","h":["1. A word indicating something that has not happened up to this moment.","2. Conjunction used to describe something that is expected in due time."]}],"d":[{"w":"alas_","h":["1. An expression of sorrow or regret.","2. A word often used in literature to express woe."]},{"w":"rope_","h":["1. A length of strong cord made by twisting together strands of material.","2. A sturdy line used for tying or securing items."]},{"w":"marry","h":["1. To unite in marriage or matrimony.","2. The act of joining two people in a ceremony of legal and ritualistic significance."]},{"w":"_dive","h":["1. To plunge headfirst into water.","2. To jump into a body of water, submerging oneself beneath the surface."]},{"w":"_slot","h":["1. A narrow opening or groove, such as one found in a vending machine.","2. A fixed time interval assigned for an activity or a participant."]}]},{"a":[{"w":"_cute","h":["1. Lacking color or brightness, often in a negative sense.","2. Add 'ac' to form a word meaning charming."]},{"w":"honor","h":["1. High respect or esteem given to someone or something.","2. A military award received for bravery."]},{"w":"actor","h":["1. A person who performs in plays, movies, or television.","2. They may win Oscars for their performances."]},{"w":"roi__","h":["1. French word for \"king.\"","2. Often used in contexts related to royalty."]},{"w":"pal__","h":["1. Informal term for a good friend.","2. Often used in greetings like \"Hey, ____!\""]}],"d":[{"w":"_harp","h":["1. A musical instrument with strings, often associated with angels.","2. Add \"S\" to make an animal name."]},{"w":"cocoa","h":["1. The primary ingredient in chocolate, derived from cacao beans.","2. Often used to make a warm and sweet drink."]},{"w":"until","h":["1. Denotes the time up to a specific point or event.","2. Often followed by a specific time or condition."]},{"w":"too__","h":["1. An adverb meaning 'also' or 'in addition.'","2. Often used at the end of a sentence for emphasis."]},{"w":"err__","h":["1. To make a mistake or be incorrect.","2. Often followed by \"or\" in legal contexts."]}]},{"a":[{"w":"hang_","h":["1. A method for suspending something without support from below.","2. What you do with a picture frame on a wall."]},{"w":"oral_","h":["1. Relating to the mouth or spoken word.","2. It's the opposite of written communication."]},{"w":"titan","h":["1. An exceptionally large or powerful person or entity.","2. In Greek mythology, these were deities of incredible strength."]},{"w":"_dare","h":["1. To have enough courage to do something risky.","2. Often accompanied by a 'truth' in a classic game."]},{"w":"__let","h":["1. To permit or allow something to happen.","2. It's used when granting permission."]}],"d":[{"w":"hot__","h":["1. High in temperature or spicy in flavor.","2. People often 'serve’ these when fresh from the oven."]},{"w":"arid_","h":["1. Characterized by a severe lack of moisture.","2. Describes landscapes with little to no vegetation."]},{"w":"natal","h":["1. Relating to birth or the circumstances around it.","2. Similar to a term for the horoscope sign of birth."]},{"w":"glare","h":["1. An intense, fierce look of disapproval or shine.","2. It can refer to a blinding light or a sharp stare."]},{"w":"__net","h":["1. A mesh structure used to catch fish or insects.","2. A common term in sports like basketball or tennis."]}]},{"a":[{"w":"_bake","h":["1. A common kitchen term for cooking food using dry heat without direct exposure to flame.","2. It's what you do when you prepare a cake in the oven."]},{"w":"alien","h":["1. Often used to describe beings from other planets.","2. In Earth's context, someone not native to a location."]},{"w":"faded","h":["1. Describes something that has lost color or brightness.","2. A way to describe jeans that have lightened with use."]},{"w":"amen_","h":["1. A word often used at the end of prayers.","2. It's a term expressing agreement, often following \"And so it shall be.\""]},{"w":"red__","h":["1. The color typically associated with danger or stop signs.","2. A primary color often seen in apples and roses."]}],"d":[{"w":"_afar","h":["1. A term used to indicate a great distance.","2. Synonymous with 'distantly' and begins with an 'A'."]},{"w":"blame","h":["1. Assigning responsibility for a fault or wrong.","2. What you do when you hold someone accountable for a mistake."]},{"w":"aided","h":["1. Means to have provided support or help to someone.","2. Past tense of providing assistance."]},{"w":"keen_","h":["1. Displaying eagerness or enthusiasm.","2. Often used to describe a sharp intellect or interest."]},{"w":"end__","h":["1. The termination point of something.","2. Opposite of beginning, often marked by closure."]}]},{"a":[{"w":"_soak","h":["1. To immerse something in liquid for a period of time.","2. What you might do to a sponge in water."]},{"w":"inane","h":["1. Lacking sense, significance, or ideas.","2. Another word for silly or foolish."]},{"w":"token","h":["1. A small item serving as a representation or symbol.","2. A metal or plastic disc used as a substitute for currency."]},{"w":"crew_","h":["1. A group of people who work on and operate a ship, aircraft, etc.","2. Describes a team often found on board."]},{"w":"hen__","h":["1. A female bird, especially of domestic fowls.","2. Lays eggs commonly used in kitchens worldwide."]}],"d":[{"w":"_itch","h":["1. A sensation on the skin that causes a desire to scratch.","2. Often accompanies allergic reactions or bug bites."]},{"w":"snore","h":["1. The noise produced during sleep by vibrating respiratory structures.","2. A night-time sound often associated with deep sleep."]},{"w":"oaken","h":["1. Made of or resembling the wood of an oak tree.","2. Describes furniture known for durability and strength."]},{"w":"anew_","h":["1. In a different and fresh way.","2. Used when starting over or repeating an action."]},{"w":"ken__","h":["1. A person's range of knowledge or understanding.","2. To recognize or identify something by sight or perception."]}]},{"a":[{"w":"short","h":["1. The opposite of long.","2. A word that describes something that does not have much length."]},{"w":"tapir","h":["1. A large, herbivorous mammal found in the jungles of South America and Southeast Asia.","2. This animal is known for its distinctive trunk-like nose."]},{"w":"abide","h":["1. To accept or act in accordance with a rule or decision.","2. This verb means to tolerate or endure something."]},{"w":"binge","h":["1. To indulge in an activity, especially eating or watching, to excess.","2. Often used to describe watching an entire series of TV in a short period."]},{"w":"_tee_","h":["1. A piece of equipment used in golf to elevate the ball for the first stroke.","2. This is also a short sleeve shirt, typically worn casually."]}],"d":[{"w":"stab_","h":["1. A sudden and sharp thrust with a pointed weapon or tool.","2. This word is commonly associated with knives and sharp objects."]},{"w":"habit","h":["1. Frequently repeated behavior or practice.","2. A routine or tendency someone doesn't often stray from."]},{"w":"opine","h":["1. To express an opinion or view on something.","2. This verb is often used when giving one's personal thoughts."]},{"w":"ridge","h":["1. A long, narrow hilltop or a chain of hills.","2. This word can also refer to the raised edges of a surface."]},{"w":"tree_","h":["1. A perennial plant with a long stem, or trunk, supporting branches and leaves.","2. This can be evergreen or deciduous, providing shade and oxygen."]}]},{"a":[{"w":"worth","h":["1. Represents the value or significance of something.","2. Five-letter word indicating monetary or intrinsic value."]},{"w":"aware","h":["1. Knowing or realizing something.","2. Five-letter word indicating consciousness or understanding."]},{"w":"rider","h":["1. A person who is traveling on a horse or vehicle.","2. Five-letter term for a passenger, typically on a motorcycle."]},{"w":"_nine","h":["1. A single digit that follows eight.","2. Number right before ten in the number line."]},{"w":"_god_","h":["1. An entity worshipped as having power over nature or human fortunes.","2. Deity in many religious languages."]}],"d":[{"w":"war__","h":["1. A state of armed conflict between different countries or groups.","2. This four-letter word represents intense conflict or battle."]},{"w":"owing","h":["1. The act of being in debt or obliged to repay.","2. A six-letter word for being in financial deficit."]},{"w":"radio","h":["1. A device used for receiving or transmitting sounds.","2. Broadcast medium for auditory entertainment and news."]},{"w":"trend","h":["1. A general direction in which something is developing or changing.","2. Fashionable or widespread patterns of behavior or style."]},{"w":"here_","h":["1. In, at, or to this place or position.","2. Word indicating immediate presence or location."]}]},{"a":[{"w":"smirk","h":["1. A sly or knowing smile.","2. Rhymes with \"quirk\" and signals amusement or scorn."]},{"w":"canoe","h":["1. A narrow watercraft pointed at both ends, propelled by paddling.","2. A small, light boat that often requires paddles to move."]},{"w":"argon","h":["1. This noble gas fills light bulbs to prevent oxidation.","2. Element with the symbol \"Ar\" and atomic number 18."]},{"w":"riot_","h":["1. A violent disturbance by a crowd.","2. This word often follows \"quiet.\""]},{"w":"eats_","h":["1. Informal term for food or meals.","2. Chews and swallows as part of a meal."]}],"d":[{"w":"scare","h":["1. To frighten or alarm someone suddenly.","2. What one might do when dressed up as a ghost on Halloween."]},{"w":"maria","h":["1. Large, dark basaltic plains on Earth's Moon.","2. Features on the Moon's surface named for the Latin word for \"seas.\""]},{"w":"ingot","h":["1. A block of metal, typically oblong in shape.","2. Often made of gold or silver, and used for shipping metal."]},{"w":"roots","h":["1. The part of a plant which attaches it to the ground.","2. Fundamental parts of a plant that provide nourishment."]},{"w":"ken__","h":["1. Barbie's iconic male companion.","2. A name synonymous with male doll produced by Mattel."]}]},{"a":[{"w":"shalt","h":["1. An archaic second-person singular form of \"shall.\"","2. Often used in biblical or poetic contexts as an imperative."]},{"w":"tuber","h":["1. A swollen underground plant structure, like a potato.","2. Plants that have these structures often store nutrients."]},{"w":"amide","h":["1. A functional group in organic chemistry, derived from ammonia.","2. Found in proteins as part of the peptide bond."]},{"w":"budge","h":["1. To change position or move slightly.","2. It describes a slight movement often against resistance."]},{"w":"_see_","h":["1. A term involving sight or vision, often placed in the middle of something.","2. Can be part of words like oversee, seesaw, or foresee."]}],"d":[{"w":"stab_","h":["1. An ending suffix indicating an action of thrusting with a sharp object.","2. Often relates to a verb describing a violent, piercing motion."]},{"w":"humus","h":["1. Organic component of soil, formed by the decomposition of leaves and other plant material.","2. Enriches soil and contributes to its fertility."]},{"w":"abide","h":["1. To accept or act in accordance with a rule or decision.","2. Often used in the context of respecting or obeying laws."]},{"w":"ledge","h":["1. A flat, narrow surface extending from a wall, cliff, or structure.","2. Useful for standing or placing objects on, often near windows."]},{"w":"tree_","h":["1. A word that forms many compounds, often found at the beginning of nature-related terms.","2. Can precede words like house, line, or trunk in compound terms."]}]},{"a":[{"w":"_wee_","h":["1. A Scottish term for small or little.","2. Often used to describe something mini or tiny."]},{"w":"tiled","h":["1. Covered or decorated with small, flat pieces often used in bathrooms or kitchens.","2. Laid out in squares upon a surface."]},{"w":"adore","h":["1. To regard with deep, often rapturous love.","2. To honor or reverence as a divine being."]},{"w":"sepia","h":["1. A reddish-brown color associated with old photographs.","2. A tone in art that gives a vintage appearance."]},{"w":"kneed","h":["1. To strike or hit with one's knee.","2. A term used in soccer for a volley using the knee."]}],"d":[{"w":"_task","h":["1. A piece of work to be done or undertaken.","2. Often involves responsibilities or chores."]},{"w":"widen","h":["1. To make something broader or more open.","2. What you do to your eyes when surprised."]},{"w":"elope","h":["1. To run away secretly to get married.","2. Avoiding a traditional wedding by fleeing."]},{"w":"eerie","h":["1. Strange or frightening, especially in a supernatural context.","2. Effect of a ghostly or haunted atmosphere."]},{"w":"_dead","h":["1. No longer alive or functioning.","2. Opposite of alive and starts with 'd'."]}]},{"a":[{"w":"guts_","h":["1. The internal organs, especially when regarded as the center of emotion or character.","2. Another word for courage or resolve."]},{"w":"unit_","h":["1. A single, distinct part of a larger whole, often used in measurement.","2. This can refer to a standard quantity in math or science."]},{"w":"miter","h":["1. A joint where two pieces are joined at an angle.","2. Often used in the context of woodworking or construction."]},{"w":"_trio","h":["1. A group of three, especially in music or performance.","2. Commonly used to describe a musical composition for three performers."]},{"w":"__end","h":["1. The opposite of the beginning.","2. It signifies the termination of something."]}],"d":[{"w":"gum__","h":["1. A sweet substance often chewed for flavor or pleasure.","2. This can also refer to the soft tissue surrounding the teeth."]},{"w":"unit_","h":["1. Similar to its across counterpart, it refers to a single part of a whole.","2. It's frequently used in contexts involving measurement or counting."]},{"w":"titre","h":["1. A measure of concentration in a solution.","2. Often used in chemistry and biology, particularly in titration processes."]},{"w":"stein","h":["1. A large beer mug, traditionally made of stoneware.","2. Often associated with German beer culture."]},{"w":"__rod","h":["1. A straight, slender, cylindrical object.","2. This word often appears in fishing or lightning equipment."]}]},{"a":[{"w":"seal_","h":["1. An aquatic mammal known for its playful nature, often found in cold waters.","2. This marine creature is frequently associated with circuses and balancing acts."]},{"w":"allow","h":["1. To grant permission for something to happen or be done.","2. This verb means to give the green light to an activity or process."]},{"w":"lease","h":["1. A formal contract for renting property over a specific period.","2. This agreement lets you use a property while paying rent."]},{"w":"scree","h":["1. A collection of broken rock fragments at the base of a crag or cliff.","2. This term describes loose stones that can be found on a mountainside."]},{"w":"atm__","h":["1. A machine that dispenses cash and allows basic account transactions.","2. Provides bank customers with access to their accounts via cards."]}],"d":[{"w":"salsa","h":["1. A popular dance from Cuba characterized by vibrant rhythms and turns.","2. Also a spicy condiment consisting of tomatoes, onions, and peppers."]},{"w":"elect","h":["1. To choose someone for a position, often seen in political contexts.","2. This verb often appears during campaigns and voting periods."]},{"w":"alarm","h":["1. A loud sound or signal warning of danger or a wake-up call.","2. Often used in devices to alert against fires, burglaries, or to wake someone."]},{"w":"lose_","h":["1. To fail to win or retain something, often used in sports or competitions.","2. This verb describes the act of misplacing an item or falling short in a contest."]},{"w":"_wee_","h":["1. A Scottish term for small or little, commonly used to describe something tiny.","2. Often used in children's stories to characterize small creatures or items."]}]},{"a":[{"w":"__cut","h":["1. This word signifies the result of separating or dividing something with a sharp tool.","2. Often associated with editing film footage or trims."]},{"w":"_mash","h":["1. To crush or grind something until it becomes a soft, pulpy substance.","2. Often applied to potatoes for a popular side dish."]},{"w":"rinse","h":["1. The act of washing something lightly, particularly after applying soap.","2. A necessary step in washing dishes to remove soap residue."]},{"w":"acorn","h":["1. The seed or nut of an oak tree.","2. Typically seen scattered on the ground in autumn in forested areas."]},{"w":"tan__","h":["1. This word often describes a browning of the skin caused by the sun's rays.","2. It can also refer to a leather color or process."]}],"d":[{"w":"__rat","h":["1. A common rodent often found in urban areas.","2. Known for its cunning and adaptability in various habitats."]},{"w":"_mica","h":["1. A group of mineral silicates known for their shiny, reflective properties.","2. Often used in makeup for its shimmering effect."]},{"w":"canon","h":["1. A term for an accepted set of laws or regulations within a particular field.","2. Often refers to a collection of works or texts in literature considered genuine."]},{"w":"ussr_","h":["1. The abbreviation for a former major socialist state that dissolved in 1991.","2. Often referred to in discussions about the Cold War."]},{"w":"then_","h":["1. This word often denotes the next step in a sequence.","2. Used to indicate time or succession in actions."]}]},{"a":[{"w":"skulk","h":["1. Move stealthily to avoid detection.","2. This verb describes moving in a sneaky or secretive manner."]},{"w":"eaten","h":["1. Past participle of the verb to consume food.","2. This word describes the state of having consumed something."]},{"w":"alive","h":["1. To be living and not dead.","2. This term signifies being in a state of life."]},{"w":"melee","h":["1. A confused fight or scuffle involving many people.","2. This refers to a chaotic hand-to-hand combat."]},{"w":"__eel","h":["1. A snakelike fish with a slippery body.","2. Known for its elongated, smooth body found in water."]}],"d":[{"w":"seam_","h":["1. A line where two pieces of fabric are sewn together.","2. This is the line along which two materials join."]},{"w":"kale_","h":["1. A leafy green vegetable often used in healthy salads.","2. This nutrient-rich vegetable is part of the cabbage family."]},{"w":"utile","h":["1. Providing utility or usefulness.","2. This adjective describes something that is practical."]},{"w":"levee","h":["1. An embankment built to prevent river overflow.","2. This structure protects areas from flooding waters."]},{"w":"kneel","h":["1. To support one's body on the knees.","2. Commonly done when proposing or praying."]}]},{"a":[{"w":"red__","h":["1. This is a vibrant color often associated with warmth and danger.","2. The color of a stop sign."]},{"w":"proof","h":["1. This term represents evidence or verification.","2. You might look for this when solving a mystery."]},{"w":"magma","h":["1. This is molten rock from beneath the Earth's crust.","2. What turns into lava once it exits a volcano."]},{"w":"__mid","h":["1. Often used to describe the middle of something.","2. Centered in the \"field\" or \"term\"."]},{"w":"__ate","h":["1. This verb means to consume food.","2. Past tense of the action of dining."]}],"d":[{"w":"rpm__","h":["1. A measure of rotational speed.","2. Commonly seen on a tachometer."]},{"w":"era__","h":["1. A long and distinct period of history.","2. Commonly used to delineate significant time spans."]},{"w":"dogma","h":["1. A principle or set of principles laid down by an authority.","2. Beliefs that are not to be questioned in specific contexts."]},{"w":"_omit","h":["1. This means to leave something out.","2. Synonym for exclude or neglect."]},{"w":"_fade","h":["1. To gradually lose brightness or color.","2. Common result of sun bleaching fabric."]}]},{"a":[{"w":"_next","h":["1. Following immediately after.","2. Often seen after \"what's\" in technology."]},{"w":"boxer","h":["1. A type of athlete who engages in the sport of fighting within a ring.","2. Can refer to both a professional fighter and a kind of shorts."]},{"w":"ovine","h":["1. Relating to or resembling sheep.","2. Describes qualities or breeds associated with woolly farm animals."]},{"w":"melon","h":["1. A sweet, juicy fruit often eaten in summer.","2. This fruit can be cantaloupe or honeydew."]},{"w":"blend","h":["1. To mix two or more substances evenly together.","2. It's what happens when you combine colors thoroughly."]}],"d":[{"w":"_bomb","h":["1. A device usually intended to cause destruction.","2. It follows fire, smoke, and atom in compound words."]},{"w":"novel","h":["1. A long, fictional narrative that describes intimate human experiences.","2. Different from a short story, this type of book often has several chapters."]},{"w":"exile","h":["1. A state of being barred from one's native country.","2. Often accompanies political disputes leading to banishment."]},{"w":"xenon","h":["1. A chemical element with the symbol Xe.","2. Commonly known as a noble gas used in lamps."]},{"w":"trend","h":["1. A general direction in which something is developing or changing.","2. Synonymous with the latest fashion or popular movements."]}]},{"a":[{"w":"grant","h":["1. To agree to give or allow something requested.","2. A sum of money given by an organization, especially for educational purposes."]},{"w":"niger","h":["1. A river and country in West Africa share this name.","2. Capital of this country is Niamey."]},{"w":"agora","h":["1. Ancient Greek gathering place, especially used for commerce.","2. This term can be associated with Greek markets or assemblies."]},{"w":"wordy","h":["1. Relating to a verbose manner of expression or content.","2. Opposite of concise, often found in essays with too many details."]},{"w":"_ray_","h":["1. A beam of light or a marine animal with flattened bodies and wide pectoral fins.","2. Often associated with beams of sunlight or energy."]}],"d":[{"w":"gnaw_","h":["1. To bite or chew on persistently.","2. Often used to describe how rodents eat through materials."]},{"w":"rigor","h":["1. Thoroughness or harsh inflexibility in opinion, temper, or judgment.","2. Often used to describe a demanding academic or training environment."]},{"w":"agora","h":["1. See 'across' hints for agora."]},{"w":"nerdy","h":["1. Informal term often used to describe someone passionate about academic pursuits.","2. Sometimes used in a pejorative sense, it now embraces intellectual enthusiasm."]},{"w":"tray_","h":["1. A flat, shallow container with raised edges, used for carrying or holding items.","2. Can be found in kitchens or service areas, often carrying food or drinks."]}]},{"a":[{"w":"cause","h":["1. This word means the reason something happens.","2. It can also refer to a movement or principle people support."]},{"w":"alloy","h":["1. This word refers to a combination of metals.","2. It is used in the creation of coins and jewelry to enhance strength."]},{"w":"titre","h":["1. This term is used in chemistry to express concentration.","2. It refers to the strength or dilution of a substance, often in solutions."]},{"w":"_err_","h":["1. This word means to make a mistake.","2. It is commonly used in the phrase \"to ___ is human.\""]},{"w":"_nay_","h":["1. This word is a formal way to say \"no.\"","2. It is often used during a vote to indicate opposition."]}],"d":[{"w":"cat__","h":["1. This word refers to a common household pet that likes to purr.","2. It is known for loving both heights and naps."]},{"w":"alien","h":["1. This word refers to beings from outer space.","2. Can also mean foreign or unfamiliar."]},{"w":"ultra","h":["1. This prefix means extremely or beyond.","2. It can precede \"violet\" to describe a part of the light spectrum."]},{"w":"sorry","h":["1. This word is used to apologize.","2. Can express sympathy or regret over an event."]},{"w":"eye__","h":["1. This word refers to the organ you see with.","2. It can also mean a lookout or watchful presence."]}]},{"a":[{"w":"slum_","h":["1. An impoverished, densely populated urban area.","2. Often associated with poor living conditions and overcrowding."]},{"w":"miser","h":["1. A person known for hoarding wealth and spending very little.","2. Commonly depicted in literature as someone who is excessively frugal."]},{"w":"unite","h":["1. To bring together for a common purpose or action.","2. This five-letter word means to join or combine people or things."]},{"w":"genre","h":["1. A category of artistic composition, such as in music or literature.","2. This term classifies different types of art based on style or subject."]},{"w":"__gel","h":["1. A substance that is often used for hair styling or as a thickener in foods.","2. It forms a semi-solid state used in various industries."]}],"d":[{"w":"smug_","h":["1. Exhibiting excessive pride in oneself or one's achievements.","2. Often carries a negative connotation of being self-satisfied or conceited."]},{"w":"line_","h":["1. Can refer to a unit of length, a queue, or a mark on a surface.","2. Often associated with drawing, geometry, or waiting."]},{"w":"using","h":["1. The act of employing something for a particular purpose.","2. It describes an application or utilization of an object or concept."]},{"w":"metre","h":["1. A unit of length in the metric system equivalent to 100 centimeters.","2. Often used in poetry to describe rhythm or structure."]},{"w":"_reel","h":["1. A cylindrical object around which film, wire, or thread can be wound.","2. Often seen in fishing or in the film industry for holding tapes or lines."]}]},{"a":[{"w":"peaky","h":["1. This word describes something with peaks or sharp points.","2. Often used to describe a type of cap with a small wonder."]},{"w":"algae","h":["1. This green plant organism is often found in water.","2. A primary producer in aquatic environments, essential for oxygen production."]},{"w":"terra","h":["1. This Latin word means 'earth' or 'land'.","2. Paired with \"firma\", it describes solid ground as opposed to the sea."]},{"w":"_gem_","h":["1. A precious or semi-precious stone, often used in jewelry.","2. This word describes something valuable or cherished."]},{"w":"_yea_","h":["1. An old English word affirming agreement or confirmation.","2. Often used historically in voting to indicate a positive response."]}],"d":[{"w":"pat__","h":["1. To lightly touch or tap someone or something gently.","2. Often refers to a small disk of butter or margin on your plate."]},{"w":"elegy","h":["1. A mournful poem or song, usually for the deceased.","2. A type of lyrical expression focusing on loss and lamentation."]},{"w":"agree","h":["1. To share the same opinion or reach a consensus.","2. Often requires compromise or common understanding."]},{"w":"karma","h":["1. A concept where actions influence future fate or destiny.","2. Integral to several Eastern religions, it dictates moral cause and effect."]},{"w":"yea__","h":["1. An old term for confirming something positively.","2. Often used in contrast with the word \"nay\" during voting."]}]},{"a":[{"w":"coop_","h":["1. A structure typically used to house poultry.","2. A cage or enclosure for small animals."]},{"w":"apple","h":["1. A fruit commonly associated with the tech giant Steve Jobs co-founded.","2. Known as a popular red or green fruit often found in pies."]},{"w":"stein","h":["1. A large beer mug traditionally used in Germany.","2. A container often made of stoneware or pewter for beverages."]},{"w":"hired","h":["1. Past tense of employing someone for a job.","2. To engage or employ someone for service."]},{"w":"_car_","h":["1. A vehicle with four wheels commonly used for transportation.","2. A personal mode of transport powered by an engine."]}],"d":[{"w":"cash_","h":["1. Physical money in the form of notes and coins.","2. The opposite of credit in transactions."]},{"w":"optic","h":["1. Relating to the eyes or vision.","2. The science of light and vision."]},{"w":"opera","h":["1. A dramatic work combining text and musical score in a theatre setting.","2. A classical performance art involving elaborate singing."]},{"w":"plier","h":["1. A tool used for gripping and bending objects.","2. Commonly found in a toolbox for mechanical tasks."]},{"w":"_end_","h":["1. The final point or part of something.","2. In storytelling, this concludes the narrative."]}]},{"a":[{"w":"_duly","h":["1. This term means 'properly' or 'suitably'.","2. It indicates something done in accordance with what is appropriate."]},{"w":"eerie","h":["1. Describes something strange or frighteningly mysterious.","2. Often used to refer to a ghostly atmosphere."]},{"w":"alien","h":["1. Refers to a being from another planet or foreign country.","2. This term is used to describe something unfamiliar or strange."]},{"w":"sand_","h":["1. A grainy material commonly found on beaches.","2. It's used to describe a type of dune often found in deserts."]},{"w":"eye__","h":["1. This organ is vital for the sense of sight.","2. It's often referred to as the window to the soul."]}],"d":[{"w":"_ease","h":["1. Refers to the absence of difficulty or effort.","2. A state of comfort or relaxation."]},{"w":"delay","h":["1. To make someone or something late or slow.","2. Often occurs with trains and flights in cases of unforeseen circumstances."]},{"w":"urine","h":["1. A waste material excreted through the kidney.","2. Fluid commonly used in medical testing."]},{"w":"lied_","h":["1. To have spoken something untrue.","2. Past tense of 'to lie', suggesting deceit."]},{"w":"yen__","h":["1. The basic monetary unit of Japan.","2. Term for both a currency and an intense desire."]}]},{"a":[{"w":"abed_","h":["1. Positioned for sleep or rest.","2. Often accompanied by dreams."]},{"w":"boxer","h":["1. A canine breed known for its energetic nature.","2. Athlete in a ring sport."]},{"w":"extra","h":["1. Something additional or more than needed.","2. Beyond what is expected or usual."]},{"w":"derby","h":["1. A hat or a horse race.","2. A sports event or stylistic headwear."]},{"w":"_day_","h":["1. Period consisting of 24 hours.","2. From sunrise to sunset."]}],"d":[{"w":"abed_","h":["1. Situated for nighttime repose.","2. Resting condition for the weary."]},{"w":"boxed","h":["1. Contained within a four-sided container.","2. Past tense of placing in a rectangular enclosure."]},{"w":"extra","h":["1. Beyond the ordinary limit.","2. An additional amount or figure."]},{"w":"derby","h":["1. Competition often involving horse races.","2. Also refers to a rounded hat worn by gentlemen."]},{"w":"_ray_","h":["1. Line of light from the sun.","2. A beam traveling in space."]}]},{"a":[{"w":"pal__","h":["1. A term for a friend or companion, often used informally.","2. The root word for \"palace\"."]},{"w":"agora","h":["1. An ancient Greek public space used for assemblies and markets.","2. This term was used to describe a place of gathering in city-states."]},{"w":"decor","h":["1. It refers to the style or layout of a room or building.","2. Often involves aesthetics, interior design, and furnishings."]},{"w":"__use","h":["1. The opposite of misuse, related to using things correctly.","2. Commonly paired with prefixes like \"re-\" or \"pre-\"."]},{"w":"__sea","h":["1. Refers to a type of geographical body of water.","2. Often preceded by \"open\" or \"black\"."]}],"d":[{"w":"pad__","h":["1. An informal term for a living space or apartment.","2. Could be a cushion or notebook material."]},{"w":"age__","h":["1. The length of time a person or thing has existed.","2. Often a defining period of one's life marked by significant changes."]},{"w":"locus","h":["1. A set position or location, often used in mathematics to define a curve.","2. Central point or focal area for activity or interest."]},{"w":"_rose","h":["1. A type of flower often associated with romance.","2. This color shares its name with a popular plant."]},{"w":"_area","h":["1. Describes a measurement of a surface or plane in square units.","2. A math term frequently associated with length and width."]}]},{"a":[{"w":"norm_","h":["1. A standard or typical example.","2. It's something that's considered usual or expected."]},{"w":"area_","h":["1. A measurement of a surface.","2. This word can describe a specific section or space."]},{"w":"balmy","h":["1. Describes pleasant, mild weather.","2. A term often used to refer to soothing warmth."]},{"w":"_lime","h":["1. A citrus fruit, often used in cooking and cocktails.","2. This acidic fruit is smaller than a lemon."]},{"w":"__cat","h":["1. A common household pet known for its independence.","2. This animal is often seen chasing mice in cartoons."]}],"d":[{"w":"nab__","h":["1. To catch or seize someone or something.","2. This verb means to apprehend or capture."]},{"w":"oral_","h":["1. Relating to the mouth.","2. This term is often used for spoken communication."]},{"w":"relic","h":["1. An object surviving from an earlier time, often historical.","2. A term for an ancient artifact or item of significance."]},{"w":"mamma","h":["1. A child's term for mother.","2. This affectionate word is used to call a mom."]},{"w":"__yet","h":["1. A conjunction used to introduce something contrasting.","2. This word is often seen connecting two contrasting ideas."]}]},{"a":[{"w":"artsy","h":["1. Describes something that is artistic or creative in nature.","2. Often used to describe a person with a keen interest in art."]},{"w":"farce","h":["1. A type of comedy that includes exaggerated and improbable situations.","2. A light, humorous play having a plot dependent on situational rather than character-driven humor."]},{"w":"abort","h":["1. To bring a premature end to a process or activity.","2. Often associated with the termination of a mission or task before completion."]},{"w":"ripe","h":["1. Fully developed and ready to be harvested or eaten, often used for fruits.","2. Indicates maturity, especially in the context of fruit."]},{"w":"_dew_","h":["1. Tiny drops of water that form on cool surfaces at night.","2. The morning moisture found on grass."]}],"d":[{"w":"afar","h":["1. From a great distance, either in space or metaphorically.","2. A term used to describe something seen or perceived from far away."]},{"w":"rabid","h":["1. Extremely passionate or zealous, often to a fanatical degree.","2. Refers to someone exhibiting excessive enthusiasm or intensity."]},{"w":"trope","h":["1. A common or overused theme or device in literature and art.","2. Refers to a figurative or metaphorical use of a word or expression."]},{"w":"screw","h":["1. A metal fastener with a helical ridge used to hold objects together.","2. Often used to secure materials in carpentry or construction."]},{"w":"yet__","h":["1. Used to indicate something that has not occurred up to now.","2. A conjunction often marking contrast or exception in English sentences."]}]},{"a":[{"w":"__mud","h":["1. A thick, wet mixture of dirt and water often found after a rainstorm.","2. It's something pigs love to wallow in."]},{"w":"shade","h":["1. It symbolizes protection from sunlight or heat.","2. You can sit under it when it's too sunny outside."]},{"w":"hands","h":["1. The body parts at the ends of your arms with fingers and thumbs.","2. They’re essential for tasks like clapping or typing."]},{"w":"urge_","h":["1. A strong, often uncontrollable impulse or desire.","2. It could make you want to buy something impulsively."]},{"w":"tear_","h":["1. To rip or split something or a drop of salty fluid from the eye.","2. It’s something your eyes produce when you cry."]}],"d":[{"w":"_shut","h":["1. To close a door, window, or container.","2. A way to secure something from opening."]},{"w":"_hare","h":["1. A fast, long-eared mammal often confused with a rabbit.","2. Known for being quick, it is part of Aesop's fables."]},{"w":"manga","h":["1. Japanese comic books or graphic novels, often read right to left.","2. Popular form of artistic storytelling originating from Japan."]},{"w":"udder","h":["1. A mammary organ in cows, goats, and other mammals used for milk-giving.","2. Farmers must routinely attend to this in dairy cattle."]},{"w":"des__","h":["1. A part of many words indicating removal, negation, or reversal.","2. Often used in English as a prefix for opposites."]}]},{"a":[{"w":"grant","h":["1. A type of financial aid often given by organizations or governments.","2. To agree to give or allow something requested."]},{"w":"ruler","h":["1. A tool used for measuring length or drawing straight lines.","2. A sovereign or monarch."]},{"w":"ultra","h":["1. Prefix meaning 'beyond' or 'extremely'.","2. Denotes something excessive or to a great degree."]},{"w":"beady","h":["1. Describes something resembling small, round, and sparkling like eyes.","2. Often used to describe eyes that are bright and penetrating."]},{"w":"_dry_","h":["1. Opposite of wet.","2. Lacking moisture."]}],"d":[{"w":"grub_","h":["1. An informal term for food.","2. Name for a larva of an insect."]},{"w":"ruled","h":["1. What a king or queen might have done over a kingdom.","2. Past tense of what a judge does in court."]},{"w":"altar","h":["1. A table or flat-topped block used in religious rituals.","2. Place for offering sacrifices or performing sacred ceremonies."]},{"w":"nerdy","h":["1. A slang term for someone who is intellectual or overly keen on technology.","2. Describes a person who is socially awkward but smart."]},{"w":"tray_","h":["1. A flat, shallow container used for carrying or displaying items.","2. Can be made of metal, plastic, or wood, used for serving food."]}]},{"a":[{"w":"_nine","h":["1. The number one less than ten (Hint: Think of a number with a tail!).","2. The smallest odd prime number greater than 7."]},{"w":"savoy","h":["1. A type of cabbage with crinkled leaves (Hint: Named after a region in France!).","2. This vegetable is a key ingredient in many European dishes."]},{"w":"adobe","h":["1. A building material made from earth and organic materials (Hint: Often associated with the American Southwest!).","2. These bricks have a history dating back to ancient civilizations, including the Egyptians."]},{"w":"girl_","h":["1. A young female human (Hint: Opposite of boy!).","2. This term is often used affectionately or informally to describe a friend."]},{"w":"_rye_","h":["1. A type of grain used in bread and whiskey (Hint: Often paired with whiskey for a warm drink!).","2. This grain is the key ingredient in a famous New York deli sandwich bread."]}],"d":[{"w":"_sag_","h":["1. To droop or sink (Hint: The opposite of being taut!).","2. Think of what happens to most hammocks over time."]},{"w":"nadir","h":["1. The lowest possible point (Hint: Opposite of zenith!).","2. This term is also related to the lowest point in a person's fortune."]},{"w":"ivory","h":["1. A dense material from the tusks of elephants (Hint: Usually cream-colored!).","2. Historically used in carving and sculpting precious artifacts."]},{"w":"noble","h":["1. Having high moral qualities (Hint: Often used before gases in chemistry!).","2. This term describes someone of high social rank or birth."]},{"w":"eye__","h":["1. An organ of sight (Hint: Filled with visions!).","2. Think of what a pirate might wear a patch over."]}]},{"a":[{"w":"neigh","h":["1. The sound a horse makes.","2. A four-letter word for a horse's vocal expression."]},{"w":"ennui","h":["1. A feeling of bored dissatisfaction.","2. A French term for boredom often used in English."]},{"w":"tepid","h":["1. Neither hot nor cold.","2. Describes something lukewarm."]},{"w":"_mule_","h":["1. A hybrid animal known for its stubbornness.","2. The offspring of a horse and a donkey."]},{"w":"_ate_","h":["1. Consumed food in the past tense.","2. Past form of \"eat\"."]}],"d":[{"w":"net__","h":["1. Used to catch fish or other small animals.","2. Often associated with fishing or sports."]},{"w":"enema","h":["1. A medical procedure to cleanse the colon.","2. Often used in medical preparation."]},{"w":"input","h":["1. Data entered into a computer.","2. Refers to information fed into a system."]},{"w":"guile","h":["1. Sly or cunning intelligence.","2. Deceptive cleverness or craftiness."]},{"w":"hide_","h":["1. To conceal from view.","2. The act of covering something from sight."]}]},{"a":[{"w":"_real","h":["1. This prefix meaning \"not\" negates the concept of fiction.","2. Opposite of fictional."]},{"w":"bilge","h":["1. Storage area in the lowest part of a ship's hull.","2. Where water collects in a vessel."]},{"w":"adult","h":["1. A mature person legally responsible for their actions.","2. One who has reached maturity."]},{"w":"redo_","h":["1. To do again: Rethink or revise.","2. Making corrections or improvements on something."]},{"w":"drew_","h":["1. Past tense of \"draw,\" could end with \"n.\"","2. To have sketched or illustrated something."]}],"d":[{"w":"_bard","h":["1. Synonymous with Shakespeare, often referred to as The ______.","2. A poet or storyteller in ancient Celtic times."]},{"w":"rider","h":["1. One who mounts and travels on an animal or bicycle.","2. Can be a cyclist or equestrian."]},{"w":"elude","h":["1. To evade or escape cleverly.","2. Difficult to grasp physically or mentally."]},{"w":"aglow","h":["1. Radiating light or passion; illuminated.","2. How something appears when bright with warmth or light."]},{"w":"let__","h":["1. To permit or allow; ends with \"go.\"","2. The act of giving permission typically preceding \"it go.\""]}]},{"a":[{"w":"octal","h":["1. A numerical system that is base 8.","2. Often used in computing, particularly for permissions in Unix."]},{"w":"voila","h":["1. A French expression often used after revealing something surprising or impressive.","2. This word is often used by magicians to indicate a successful trick."]},{"w":"alley","h":["1. A narrow passageway between or behind buildings.","2. You might find kids playing stickball here in an urban setting."]},{"w":"toe__","h":["1. A part of the foot, often stubbed on furniture.","2. You have ten of these, providing balance and support."]},{"w":"end__","h":["1. The termination point of something or concluding section.","2. Opposite of the beginning, often associated with something final."]}],"d":[{"w":"ovate","h":["1. Egg-shaped or elliptical in outline.","2. The shape you might also describe as ovoid."]},{"w":"colon","h":["1. A punctuation mark used to precede a list or explanation.","2. Part of digestive anatomy and a key grammatical symbol."]},{"w":"tiled","h":["1. Covered with squares of material such as ceramic or clay.","2. Often used in kitchens and bathrooms for flooring or walls."]},{"w":"ale__","h":["1. A type of beer brewed using a warm fermentation method.","2. Often associated with British pubs and has a robust flavor."]},{"w":"lay__","h":["1. To place something down in a flat position.","2. Action often associated with setting down an object."]}]},{"a":[{"w":"toil_","h":["1. Engage in hard and continuous work or to labor energetically.","2. A word that describes working diligently or with great effort."]},{"w":"acre_","h":["1. A unit of land measurement typically used in agriculture.","2. A common term for a measure of land area, especially in real estate."]},{"w":"leave","h":["1. To depart from or go away from a place or situation.","2. This word describes the action of making an exit."]},{"w":"eaten","h":["1. The past participle of the verb that means to consume food.","2. This word indicates that food has been consumed."]},{"w":"_need","h":["1. A requirement or necessity for someone or something.","2. Essential demand for necessities or wishes."]}],"d":[{"w":"tale_","h":["1. A story or account of imaginary or real events.","2. This word often involves elements of fiction or folklore."]},{"w":"ocean","h":["1. A vast body of saltwater covering much of Earth's surface.","2. This word describes large marine expanses like the Atlantic or Pacific."]},{"w":"irate","h":["1. Feeling or showing extreme anger.","2. This term describes someone who is furious or enraged."]},{"w":"levee","h":["1. An embankment built to prevent flooding of a river.","2. Structures designed to control water flow into cities and fields."]},{"w":"__end","h":["1. The opposite of the beginning or start.","2. What you reach after a journey or process is complete."]}]},{"a":[{"w":"swank","h":["1. A word used to describe someone very stylish or elegant.","2. Often associated with luxury or a dashing appearance."]},{"w":"canoe","h":["1. A small, narrow boat powered by paddling.","2. Often used for recreation or racing on water."]},{"w":"aging","h":["1. Describes the process of getting older.","2. Typically associated with increased wisdom and maturity."]},{"w":"nose_","h":["1. The part of the face used for smelling and breathing.","2. Rhymes with \"rose.\""]},{"w":"_net_","h":["1. Used to catch fish or butterflies.","2. Can also refer to a part of the internet."]}],"d":[{"w":"scan_","h":["1. Quickly looking over text or images.","2. Often done with machines at checkouts."]},{"w":"wagon","h":["1. A vehicle with four wheels for transporting goods or people.","2. Often used by Western settlers in the United States."]},{"w":"anise","h":["1. A spice with a licorice flavor.","2. Often used in baking and Mediterranean cooking."]},{"w":"nonet","h":["1. A musical ensemble with nine players.","2. This term can also refer to a specific type of poem format."]},{"w":"keg__","h":["1. A small barrel often used for storing beer.","2. Commonly seen at parties or pubs offering draft beverages."]}]},{"a":[{"w":"_suds","h":["1. These are foamy bubbles typically found when soap and water mix.","2. It's a result of agitating soap in water, often used for cleaning."]},{"w":"banal","h":["1. This term refers to something lacking in originality, often dull or commonplace.","2. It's used to describe things or ideas that are unoriginal or overused."]},{"w":"unity","h":["1. This word signifies the state of being joined or working together as a whole.","2. It's essential for group cohesion and harmony."]},{"w":"fete_","h":["1. A lavish celebration or festival.","2. It's often thrown to honor someone or something special."]},{"w":"fry__","h":["1. To cook something in hot oil or fat.","2. It's a common method of preparing foods like eggs or potatoes."]}],"d":[{"w":"_buff","h":["1. This term refers to an enthusiast or expert in a specific field.","2. It's often used to describe fans of film, music, or other areas."]},{"w":"saner","h":["1. This comparative term implies being more sensible or rational.","2. It's used to describe someone acting in a more balanced and reasonable manner."]},{"w":"unity","h":["1. This word signifies togetherness or a state of harmony among people or groups.","2. It's crucial where collaboration and teamwork are necessary."]},{"w":"date_","h":["1. This term can refer to a romantic appointment or an edible fruit.","2. It's both a day of the month and a sweet, dark brown fruit from palm trees."]},{"w":"sly__","h":["1. This adjective describes someone who is cunning or deceitful in a clever way.","2. It's often used for someone who achieves things through trickery."]}]},{"a":[{"w":"ably_","h":["1. Competently or skillfully, often followed by \"done.\"","2. In a manner indicative of competence or proficiency."]},{"w":"fluid","h":["1. Matter that can flow, like water or air.","2. A substance whose particles glide over each other easily."]},{"w":"tamer","h":["1. Someone who calms wild animals for a living.","2. A person capable of subduing or domesticating fierce creatures."]},{"w":"_rely_","h":["1. Depend on someone or something with confidence.","2. To trust or have faith in someone's capability."]},{"w":"_end_","h":["1. Termination or conclusion of a thing.","2. The final part of something."]}],"d":[{"w":"aft__","h":["1. Towards the rear end of a ship or aircraft.","2. Opposite of \"fore\" in nautical terminology."]},{"w":"blare","h":["1. Emit a loud, harsh noise like that of a blaring horn.","2. Produce a sound that is disturbingly loud or piercing."]},{"w":"lumen","h":["1. A unit of luminous flux in the International System of Units.","2. Measurement of light perceived by the human eye from a source."]},{"w":"yield","h":["1. To produce, as in crops or results.","2. Give way or submit, often used in traffic signs."]},{"w":"_dry_","h":["1. Free from moisture or liquid; opposite of wet.","2. A condition or climate characterized by lack of rain."]}]},{"a":[{"w":"low__","h":["1. Opposite of \"high\".","2. An adjective describing something not elevated."]},{"w":"emit_","h":["1. To give off, as in light or energy.","2. A word describing the act of sending out something."]},{"w":"tight","h":["1. Not loose.","2. Describes something snug or secure."]},{"w":"_thus","h":["1. Therefore.","2. A word used to indicate a result or consequence."]},{"w":"__tsh","h":["1. Abbreviation for temperature and hot.","2. A common three-letter ending implying warmth."]}],"d":[{"w":"let__","h":["1. An archaic expression for allowing or permitting.","2. Often paired with \"go\" in a phrase meaning release."]},{"w":"omit_","h":["1. To leave out or exclude.","2. A term used when something is intentionally not mentioned."]},{"w":"wight","h":["1. Archaic term for a living being or creature.","2. An old English word often associated with mythical beings."]},{"w":"_thus","h":["1. Therefore.","2. A word used to indicate a result or consequence."]},{"w":"__tsh","h":["1. Abbreviation for temperature and hot.","2. A common three-letter ending implying warmth."]}]},{"a":[{"w":"dusky","h":["1. Dark and shadowy, often used to describe the time of day just as the sun sets.","2. Having a slightly dark and mysterious appearance, as in twilight."]},{"w":"inane","h":["1. Lacking sense or meaning, often used to describe trivial talk or folly.","2. Describing something silly or devoid of intelligence."]},{"w":"piles","h":["1. Heaps or large amounts, often disorganized collections.","2. Stacks or great quantities, sometimes overwhelming."]},{"w":"_toe_","h":["1. The digit at the end of a human foot.","2. In ballet, this is a critical point of contact with the floor."]},{"w":"_end_","h":["1. The final part of something, typically bringing closure.","2. What you reach once you've finished something."]}],"d":[{"w":"dip__","h":["1. A quick or brief plunge into a liquid.","2. Often refers to a slight decrease in level or amount."]},{"w":"unite","h":["1. To come or bring together for a common purpose.","2. Often involves merging separate elements into one."]},{"w":"salon","h":["1. A place where hair is cut and styled.","2. Often associated with a beauty shop or sophisticated gathering room."]},{"w":"kneed","h":["1. Used to describe the act of hitting someone with the knee.","2. An action done often in martial arts or self-defense utilizing a specific joint in the leg."]},{"w":"yes__","h":["1. An affirmative response or agreement to a question.","2. Used to express consent or a positive answer."]}]},{"a":[{"w":"_oval","h":["1. This is the shape of an athletic track or a rugby field.","2. It describes an elongated circle with a central axis longer than its diameter."]},{"w":"_pine","h":["1. This type of tree is commonly associated with Christmas.","2. It is a type of evergreen tree known for its needles."]},{"w":"aired","h":["1. Television programs and radio shows are often described using this word after broadcast.","2. Information or opinions expressed in public can be described by this term."]},{"w":"gnaw_","h":["1. What a rodent might do to a piece of wood or food.","2. A verb describing the action of chewing or biting persistently."]},{"w":"eel__","h":["1. This is a long, snake-like fish often found in freshwater and saltwater bodies.","2. Known for its slippery and elongated body shape."]}],"d":[{"w":"__age","h":["1. It's a term you might use when referring to your time in years.","2. Often associated with the process of getting older."]},{"w":"opine","h":["1. If you expressed your views in a discussion, you did this.","2. A verb used when stating one's thoughts or beliefs."]},{"w":"viral","h":["1. A term often used to describe content that spreads rapidly on social media.","2. Characterizes something that becomes very popular and widespread quickly."]},{"w":"anew_","h":["1. This word means to start over or do something again with a fresh approach.","2. It's often used when something is done for a second time, but differently."]},{"w":"led__","h":["1. Past tense of a verb meaning to guide or direct.","2. This word indicates having been shown the way or influenced."]}]},{"a":[{"w":"_duct","h":["1. A conduit used to channel or transport materials.","2. Often paired with \"air\" or \"con\"."]},{"w":"belle","h":["1. A French term for a beautiful woman or girl.","2. Often used to describe the star of a ball or event."]},{"w":"actor","h":["1. A person who performs roles in plays, movies, or TV.","2. Often seen on stage or screen."]},{"w":"torus","h":["1. A doughnut-shaped geometric figure.","2. Commonly used in mathematics and design."]},{"w":"_rate","h":["1. To determine the value or rank of an object or person.","2. Sometimes used before \"exchange\" or \"interest\"."]}],"d":[{"w":"_bat_","h":["1. A piece of sports equipment used in baseball and cricket.","2. Can also refer to a nocturnal flying mammal."]},{"w":"decor","h":["1. The style and layout of a room or space.","2. Related to interior design and furnishings."]},{"w":"ultra","h":["1. A prefix meaning beyond or excessive.","2. Often signifies extremity or a high degree."]},{"w":"clout","h":["1. Influence or power, especially in politics or business.","2. A term often used in social media contexts."]},{"w":"terse","h":["1. Brief and to the point communication.","2. Often associated with being concise or brusque."]}]},{"a":[{"w":"amass","h":["1. Gather or accumulate a large amount of something.","2. What might you do with wealth or a collection of items over time?"]},{"w":"ratio","h":["1. A comparison of two quantities by division.","2. Mathematical term representing the relationship between two numbers."]},{"w":"enter","h":["1. To come or go into a particular place.","2. What do you do when you walk into a room?"]},{"w":"_give_","h":["1. To hand over something to someone.","2. What you do when you donate something?"]},{"w":"_ace_","h":["1. A card or a serve that isn't returned by the opponent.","2. Tennis term for an unreturned serve."]}],"d":[{"w":"are__","h":["1. Plural form of the present tense of 'is.'","2. What form of \"to be\" fits with \"you\" or \"we\"?"]},{"w":"manga","h":["1. Japanese style of comic book or graphic novel.","2. Popular illustrated storytelling from Japan."]},{"w":"attic","h":["1. A space or room just below the roof of a house, often used for storage.","2. The uppermost part of a house."]},{"w":"sieve","h":["1. A tool used to separate coarser from finer particles.","2. Kitchen tool used for straining."]},{"w":"sore_","h":["1. Sensitive or painful spot on the body.","2. Describes an area that feels tender."]}]},{"a":[{"w":"pun__","h":["1. This is a humorous play on words.","2. This word can follow \"word\" or \"a good\" and refers to a form of wit."]},{"w":"anode","h":["1. This is the terminal where current flows into a polarized electrical device.","2. In electrochemical cells, this is the opposite of the cathode."]},{"w":"rival","h":["1. This is someone you compete against.","2. In business, this term often describes competing companies."]},{"w":"_term_","h":["1. A fixed period of time or a word used in a specific context.","2. Often used to refer to the length of a political office or school semester."]},{"w":"_elk_","h":["1. These large deer are known for their majestic antlers.","2. A North American animal slightly smaller than a moose."]}],"d":[{"w":"par__","h":["1. An average or standard, often used in golf.","2. In finance, this term can indicate face value."]},{"w":"unite","h":["1. This verb means to join together into a single entity.","2. To bring together to form a whole or to merge."]},{"w":"novel","h":["1. A long narrative typically written in prose.","2. Describes a book-length work of fiction."]},{"w":"_dark_","h":["1. The absence of light or color.","2. Can also refer to mood or themes in literature."]},{"w":"_elm_","h":["1. A type of tree known for its strong wood and distinct leaves.","2. Often afflicted by a disease bearing its name."]}]},{"a":[{"w":"dour_","h":["1. A term describing someone's stern or gloomy appearance.","2. This word often characterizes a sullen mood."]},{"w":"unset","h":["1. What happens to the sun when it's no longer in the sky for the day.","2. This word is the opposite of \"set\" in the context of jewels or the sun."]},{"w":"acute","h":["1. An angle less than 90 degrees in geometry.","2. This word describes something sharp or severe in effect."]},{"w":"learn","h":["1. The process of acquiring knowledge.","2. You do this when you master new skills or information."]},{"w":"__lot","h":["1. A small plot of land or a quantity of something.","2. Often paired with \"parking\" to describe where cars are left."]}],"d":[{"w":"dual_","h":["1. Pertaining to two or double.","2. This term describes something with two parts or functions."]},{"w":"once_","h":["1. Happening or occurring a single time.","2. This term can describe a past event that happened only one time."]},{"w":"usual","h":["1. Commonly occurring or experienced; typical.","2. This word refers to what is considered normal or expected."]},{"w":"retro","h":["1. Term for styles or trends from the past.","2. This term refers to a throwback in fashion or design."]},{"w":"_tent","h":["1. A portable shelter often used for camping.","2. This word is associated with outdoor activities and camping trips."]}]},{"a":[{"w":"deaf_","h":["1. Unable to hear.","2. Rhymes with \"leaf.\""]},{"w":"avian","h":["1. Related to birds.","2. Of or concerning birds."]},{"w":"sidle","h":["1. Move sideways, often inconspicuously.","2. To edge along stealthily."]},{"w":"_less","h":["1. Suffix meaning \"without.\"","2. Indicates absence of something."]},{"w":"__set","h":["1. A category of items.","2. Collection, typically defined by rules or criteria."]}],"d":[{"w":"das__","h":["1. German article for \"the.\"","2. Often seen in German phrases."]},{"w":"evil_","h":["1. Profound wickedness or immorality.","2. Opposite of good."]},{"w":"aides","h":["1. Assistants or helpers.","2. They support senior figures."]},{"w":"false","h":["1. Not true or authentic.","2. Opposite of true."]},{"w":"_nest","h":["1. Home for birds.","2. Rhymes with \"quest.\""]}]},{"a":[{"w":"bevel","h":["1. An angled surface that joins two edges or faces, typically in carpentry or metalwork.","2. A term used in woodworking to describe a change in angle."]},{"w":"inane","h":["1. Lacking sense or meaning, often used to describe pointless talk or actions.","2. A word for something empty of significance."]},{"w":"beget","h":["1. To bring into existence, often used in the context of procreation.","2. The term for cause or produce something."]},{"w":"_mum_","h":["1. British term for mother or staying silent.","2. Means staying silent or a protective figure."]},{"w":"_yea_","h":["1. An affirmative vote or the archaic version of yes.","2. Old-fashioned word for yes or an affirmative answer."]}],"d":[{"w":"bib__","h":["1. An item of clothing worn to protect one's clothes while eating.","2. Used by children during meals to keep their clothes clean."]},{"w":"enemy","h":["1. A person or force that is actively opposed or hostile to someone or something.","2. Term for a rival or adversary."]},{"w":"vague","h":["1. Lacking clarity, precision, or explicit detail.","2. Describes concepts that are not clear or defined."]},{"w":"enema","h":["1. A procedure involving the injection of fluid into the lower bowel.","2. Often used to relieve constipation or prepare for surgery."]},{"w":"let__","h":["1. To allow or permit something to occur.","2. It's often paired with a directive, as in to give permission."]}]},{"a":[{"w":"armor","h":["1. Defensive clothing worn by medieval knights.","2. Protective covering used in combat."]},{"w":"beefy","h":["1. Informal term for muscular and heavily built.","2. Slang for someone with a strong, robust physique."]},{"w":"abate","h":["1. To lessen in intensity or degree.","2. Verb meaning to subside or decrease."]},{"w":"sun__","h":["1. The celestial body that gives us daylight.","2. Center of our solar system and provider of light."]},{"w":"est__","h":["1. Abbreviation for standard time on the east coast.","2. Initials commonly used to denote east coast standard time."]}],"d":[{"w":"abase","h":["1. To lower in rank, prestige, or esteem.","2. Humiliate or degrade someone."]},{"w":"rebus","h":["1. Puzzle using pictures to represent words.","2. Visual word puzzle consisting of images and symbols."]},{"w":"meant","h":["1. Past tense of the word \"mean\".","2. Intended or had in mind."]},{"w":"oft__","h":["1. Poetic contraction for frequently.","2. Shortened form of a word meaning often."]},{"w":"rye__","h":["1. Type of grain used in bread and whiskey.","2. A kind of grass grown as a cereal crop."]}]},{"a":[{"w":"self_","h":["1. A prefix indicating reference to oneself.","2. Often paired with \"esteem\" or \"portrait.\""]},{"w":"cloak","h":["1. A garment used for warmth or concealment.","2. Often associated with magicians or mysterious figures."]},{"w":"abode","h":["1. A formal or literary word for residence or home.","2. Often used in expressions like \"humble ____.\""]},{"w":"nosey","h":["1. Someone overly interested in others' affairs.","2. Can be seen as the opposite of discrete."]},{"w":"_wed_","h":["1. Often achieved ceremoniously during a marriage.","2. Associated with rings and vows."]}],"d":[{"w":"scan_","h":["1. To look over something quickly or systematically.","2. Often done with a barcode reader."]},{"w":"elbow","h":["1. The joint connecting the forearm and upper arm.","2. Allows your arm to bend."]},{"w":"loose","h":["1. Not tight or firmly fixed in place.","2. Easy to move or unconfined."]},{"w":"faded","h":["1. Reduced intensity in color or brightness.","2. What happens to fabric exposure to sunlight over time."]},{"w":"_key_","h":["1. Essential item needed to open doors.","2. Removable or fixed lever used to open a lock."]}]},{"a":[{"w":"_fad_","h":["1. A temporary fashion or trend people follow.","2. What do you call a short-lived enthusiasm?"]},{"w":"gaze_","h":["1. To look steadily and intently, especially in admiration, surprise, or thought.","2. What term describes a fixed, prolonged look?"]},{"w":"adult","h":["1. A fully grown person or mature animal.","2. What do you call someone who has reached maturity?"]},{"w":"servo","h":["1. A device or mechanism that provides control in a feedback system.","2. What electronics term describes a motor with feedback control?"]},{"w":"_deep","h":["1. Extending far down from the top or surface.","2. Describes a lake with a great distance to the bottom."]}],"d":[{"w":"_gas_","h":["1. A state of matter without a defined shape or volume.","2. This term is used for what fills balloons with helium."]},{"w":"faded","h":["1. Became less bright or disappeared gradually.","2. What happens to denim jeans over time for a vintage look?"]},{"w":"azure","h":["1. A bright blue color like that of a clear, unclouded sky.","2. Which word describes the blue often associated with a clear sky?"]},{"w":"delve","h":["1. To investigate or research deeply or thoroughly.","2. What action involves digging into detailed information?"]},{"w":"__top","h":["1. The highest or uppermost point, part, or surface.","2. The opposite of bottom or base."]}]},{"a":[{"w":"__job","h":["1. This is often what people seek for employment.","2. A position held as part of one's career."]},{"w":"_keno","h":["1. A popular gambling game similar to a lottery.","2. In this game, you pick numbers which may be drawn for a prize."]},{"w":"jelly","h":["1. A sweet, gelatinous spread often found on toast.","2. This spread is a common base for peanut butter sandwiches."]},{"w":"only_","h":["1. Used to denote something singular or exclusive.","2. It indicates no more than one."]},{"w":"toy__","h":["1. Typically given to children for play and enjoyment.","2. These are sold in stores during the holiday season."]}],"d":[{"w":"__jot","h":["1. To write something down quickly.","2. A synonym for 'quickly note' with three letters."]},{"w":"_keno","h":["1. This lottery-like game involves selecting numbers.","2. Found in casinos, it's similar to bingo."]},{"w":"jelly","h":["1. A sweet spread made with sugar and fruit juice, often found in jars.","2. This wobbly, colorful spread can be found beside peanut butter."]},{"w":"only_","h":["1. Describes something singular with no other alternatives.","2. Exclusively or solely, leaving no room for others."]},{"w":"boy__","h":["1. A young male child.","2. Opposite of 'girl' in gender terms."]}]},{"a":[{"w":"floc_","h":["1. The semi-permanent or temporary grouping of particles in a fluid.","2. A cluster of loosely clumped particles, often seen in liquids."]},{"w":"lull_","h":["1. A temporary period of calm or quiet.","2. A brief period of peacefulness."]},{"w":"ardor","h":["1. Intense enthusiasm or passion.","2. A powerful feeling of warmth and devotion."]},{"w":"geese","h":["1. A group of waterfowl with long necks, often seen flying in a V formation.","2. They are larger and heavier than ducks with loud calls."]},{"w":"__red","h":["1. The opposite of blue on the color wheel, typically vibrant and warm.","2. A primary color often associated with love and danger."]}],"d":[{"w":"flag_","h":["1. A piece of fabric with a specific design, often used as a symbol for a country or group.","2. Often seen waving in the breeze at ceremonies and public events."]},{"w":"lure_","h":["1. Something that attracts or tempts, particularly when using deception.","2. Often used in fishing to attract fish."]},{"w":"older","h":["1. Comparatively more advanced in age.","2. Describes someone who has lived longer than another."]},{"w":"close","h":["1. To bring something to an end or conclusion.","2. What you do to a book after reading."]},{"w":"__red","h":["1. The opposite of blue on the color wheel, typically vibrant and warm.","2. A primary color often associated with love and danger."]}]},{"a":[{"w":"bless","h":["1. An act of giving divine favor or approval.","2. Often said when someone sneezes."]},{"w":"eerie","h":["1. Strange and frightening in a mysterious way.","2. Often used to describe a spooky scene."]},{"w":"amaze","h":["1. To fill with wonder or astonishment.","2. Often the result of something extraordinary or unexpected."]},{"w":"muse_","h":["1. A source of inspiration, typically for an artist.","2. Often related to divine influence in creativity."]},{"w":"_red_","h":["1. A vibrant primary color.","2. Associated with roses and love."]}],"d":[{"w":"beam_","h":["1. A ray of light.","2. A structural element used in construction."]},{"w":"lemur","h":["1. A primate found in Madagascar.","2. Known for its large eyes and nocturnal habits."]},{"w":"erase","h":["1. To remove written or drawn marks.","2. What you do with a pencil’s rubber end."]},{"w":"sized","h":["1. Dimension or magnitude of an object.","2. Describes fit, typically of clothing or shoes."]},{"w":"see__","h":["1. Perceive with the eyes.","2. To have visual perception."]}]},{"a":[{"w":"_give","h":["1. Provide or hand over to someone.","2. To offer something to someone without expecting anything in return."]},{"w":"_omen","h":["1. A sign or warning of future events.","2. Often thought of as an indicator of good or bad luck."]},{"w":"board","h":["1. A flat piece intended for a specific use.","2. Often used in classrooms and meetings for writing information."]},{"w":"edgy_","h":["1. Nervous or tense demeanor.","2. Fashionably avant-garde or innovative."]},{"w":"eye__","h":["1. The organ of sight.","2. Used to refer to someone's gaze or attention."]}],"d":[{"w":"__bee","h":["1. Insect known for pollination and honey production.","2. Social insect living in hives."]},{"w":"goody","h":["1. Term for something attractive or appealing, often a treat.","2. An exclamation expressing delight or satisfaction."]},{"w":"image","h":["1. Visual representation of a person or object.","2. Can refer to one's public perception or persona."]},{"w":"very_","h":["1. Extremely or to a great degree.","2. Intensifier before an adjective."]},{"w":"end__","h":["1. The final part or conclusion.","2. A limitation or boundary of something."]}]},{"a":[{"w":"_bog_","h":["1. A wetland area that is soft and marshy.","2. A natural habitat often filled with peat deposits."]},{"w":"melee","h":["1. A confused or chaotic fight often involving multiple people.","2. A term often used in video games to describe close combat attacks."]},{"w":"urine","h":["1. A liquid waste product produced by the kidneys.","2. It is typically used for medical testing in laboratories."]},{"w":"devil","h":["1. A figure often associated with evil or wickedness in mythology.","2. The antagonist in many religious narratives."]},{"w":"_tee_","h":["1. A small device used in golf to support a stationary ball.","2. Positioned between \"vest\" and \"shirt\" to signify a type of apparel."]}],"d":[{"w":"_mud_","h":["1. A mixture of water and soil typically found on the ground.","2. Often found after rain, it's what your boots leave tracks in."]},{"w":"beret","h":["1. A soft, round, flat-crowned hat often associated with French fashion.","2. A headwear popular among artists and military personnel."]},{"w":"olive","h":["1. A fruit commonly used for oil and as a garnish.","2. Frequently appearing in Mediterranean dishes and martinis."]},{"w":"genie","h":["1. A mythical spirit often confined to a bottle or lamp.","2. Pop culture icon capable of granting three wishes."]},{"w":"_eel_","h":["1. A long, slender fish often found in freshwater and saltwater.","2. Sought-after sushi ingredient famously known for its slipperiness."]}]},{"a":[{"w":"ten__","h":["1. This numerical prefix means a group of ten.","2. Half of twenty."]},{"w":"waist","h":["1. This is the part of the body between the ribs and hips.","2. Center part of a human body where a belt is typically worn."]},{"w":"ocher","h":["1. A pigment commonly used in prehistoric art, ranging from yellow to brown in color.","2. Earthy pigment derived from natural clay deposits."]},{"w":"_halo","h":["1. A ring of light appearing to surround a luminous body, especially the sun or moon.","2. Often depicted as a circle of light around the head of Holy figures."]},{"w":"__oft","h":["1. An archaic word that means frequently.","2. Synonym to the word 'often'."]}],"d":[{"w":"two__","h":["1. Comes just after one and before three.","2. Represents a pair or duet."]},{"w":"each_","h":["1. This refers to every single one of two or more things considered individually.","2. Used to denote the individuality of items in a group."]},{"w":"nihao","h":["1. This is the Mandarin phrase for greeting someone.","2. Equivalent to saying 'hello' in Chinese."]},{"w":"_self","h":["1. This prefix can indicate focusing on personal identity or character.","2. When added to 'my', it forms a reflexive pronoun."]},{"w":"_trot","h":["1. A gait between a walk and a canter, often associated with horses.","2. The act of jogging or running lightly."]}]},{"a":[{"w":"sup__","h":["1. To consume food or drink, especially in a formal or sophisticated manner.","2. A prefix meaning \"above\" or \"over.\""]},{"w":"knob_","h":["1. A round handle or control switch.","2. A small, rounded decorative object or control."]},{"w":"idler","h":["1. Someone who avoids work and activity.","2. A device used to maintain tension in a belt."]},{"w":"_okay","h":["1. A term for approval or consent.","2. Informal way to say everything is fine or satisfactory."]},{"w":"__are","h":["1. A state of being or existence.","2. A form of the verb \"to be\" used with \"you\" and \"we.\""]}],"d":[{"w":"ski__","h":["1. A popular winter sport involving gliding over snow.","2. Associated with slopes and snowy mountains."]},{"w":"undo_","h":["1. To reverse an action or effect.","2. To negate or remove an outcome."]},{"w":"polka","h":["1. A lively dance originating from Central Europe.","2. A type of music and dance in 2/4 time."]},{"w":"_bear","h":["1. A large mammal, often found in forests or mountains.","2. An animal known to hibernate in winter."]},{"w":"__rye","h":["1. A type of grain used for making bread and whiskey.","2. A cereal crop similar to wheat and barley."]}]},{"a":[{"w":"swore","h":["1. A past tense verb meaning to have made a solemn promise or taken an oath.","2. A verb form indicating a past action of making a vow."]},{"w":"coven","h":["1. A gathering of witches, often depicted as a group of thirteen.","2. A term for an assembly of individuals practicing witchcraft."]},{"w":"avoid","h":["1. To keep away from or evade.","2. An action taken to prevent contact or interaction with something."]},{"w":"rein_","h":["1. A strap used to control a horse, often made of leather.","2. Used in the phrase \"hold the reins\" meaning to be in control."]},{"w":"end__","h":["1. Conclusion or final part of something, often signifying termination.","2. A point where something ceases to continue or operate."]}],"d":[{"w":"scare","h":["1. To cause sudden fear or alarm.","2. Action of creating a state of fright in someone."]},{"w":"woven","h":["1. A past participle meaning interlaced threads or strands to form a material.","2. Referring to fabric or material created by interlacing threads."]},{"w":"ovoid","h":["1. Egg-shaped or resembling an oval.","2. Having the shape reminiscent of an egg."]},{"w":"rein_","h":["1. A strap used to control a horse, often made of leather.","2. Used in the phrase \"hold the reins\" meaning to be in control."]},{"w":"end__","h":["1. Conclusion or final part of something, often signifying termination.","2. A point where something ceases to continue or operate."]}]},{"a":[{"w":"shill","h":["1. A person who publicly helps or gives credibility to a person or organization without disclosing they have a close relationship.","2. Someone who acts as a decoy in a card game to boost players' confidence."]},{"w":"media","h":["1. Channels or tools used to store and deliver information or data.","2. Forms of communication such as television or newspapers."]},{"w":"anion","h":["1. A negatively charged ion.","2. An atom or molecule with more electrons than protons."]},{"w":"scone","h":["1. A small, lightly sweetened biscuit-like cake typically served with tea.","2. Often made with baking powder as a leavening agent."]},{"w":"hem__","h":["1. The edge of a piece of cloth that is folded under and sewn.","2. A finishing process that prevents fabric fraying."]}],"d":[{"w":"smash","h":["1. To violently break into pieces.","2. The act of shattering something with force."]},{"w":"hence","h":["1. As a consequence; for this reason.","2. Used to indicate something that follows logically."]},{"w":"idiom","h":["1. A phrase with a figurative meaning different from its literal one.","2. An expression peculiar to a particular language."]},{"w":"lion_","h":["1. Known as the king of the jungle.","2. A big cat found in the wilds of Africa and Asia."]},{"w":"lane_","h":["1. A narrow road, typically between hedges or vegetation.","2. A designated division on a street for specific vehicles or activities."]}]},{"a":[{"w":"omit","h":["1. To leave out or exclude something or someone.","2. Not include in a list or account."]},{"w":"redo","h":["1. To do something again or over.","2. Make corrections and attempt a task anew."]},{"w":"talon","h":["1. A sharp claw, especially on a bird of prey.","2. Part of an eagle's foot for grasping prey."]},{"w":"stole","h":["1. To take something without permission.","2. Illicitly appropriated a possession."]},{"w":"hen","h":["1. A female chicken, often kept for egg production.","2. Domestic bird that lays eggs."]}],"d":[{"w":"etch","h":["1. To engrave a design on a surface.","2. Permanently mark by cutting into a surface."]},{"w":"orate","h":["1. To deliver a speech in a formal manner.","2. Engage in public speaking."]},{"w":"melon","h":["1. A large, juicy fruit, often green or orange inside.","2. Refreshing globe eaten in summer."]},{"w":"idol","h":["1. An image or representation greatly admired or worshipped.","2. Revered religious icon or celebrity."]},{"w":"tone","h":["1. The attitude or emotion conveyed by speaking or writing.","2. Quality of sound or color in communication."]}]},{"a":[{"w":"bicep","h":["1. A muscle located on the front part of the upper arm.","2. It's often shown off by bodybuilders in poses."]},{"w":"adobe","h":["1. A type of brick made from sun-dried earth and straw.","2. Commonly found in the architecture of the southwestern USA."]},{"w":"lemon","h":["1. A citrus fruit known for its sour taste and yellow color.","2. Often added to tea or used to create refreshing drinks like lemonade."]},{"w":"damn_","h":["1. A common swear word that expresses frustration or anger.","2. Can be paired with \"it\" to denote discontent."]},{"w":"_lay_","h":["1. A verb meaning to put down gently or carefully.","2. Often paired with \"egg\" for something that chickens do."]}],"d":[{"w":"bald_","h":["1. Without hair, typically describing a person's head.","2. Associated with a mature or adult eagle species."]},{"w":"ideal","h":["1. A standard of perfection or excellence.","2. Often used to describe the best possible scenario."]},{"w":"comma","h":["1. A punctuation mark used for separating ideas or elements.","2. Placed between the digits of a number for clarity in larger figures."]},{"w":"ebony","h":["1. A type of wood known for its dark, dense qualities.","2. Frequently used for piano keys due to its rich color."]},{"w":"pen__","h":["1. A writing instrument that uses ink.","2. Can be found in several forms, such as ballpoint or fountain."]}]},{"a":[{"w":"_inch","h":["1. A small unit of measurement equal to 1/12 of a foot.","2. This unit is often used to measure height or screen sizes."]},{"w":"_silo","h":["1. A tall, cylindrical structure used for storing grain.","2. Found on farms, it is often filled with corn or wheat."]},{"w":"cleat","h":["1. A type of shoe with protrusions on the sole for grip.","2. Commonly used by soccer players for better traction on the field."]},{"w":"pecs_","h":["1. Slang for the pectoral muscles primarily located in the chest.","2. Bodybuilders often focus on building these muscles."]},{"w":"step_","h":["1. A single movement with the foot in walking or running.","2. Often used to describe progress or advancement e.g., 'baby' form."]}],"d":[{"w":"__cps","h":["1. The abbreviation stands for 'cycles per second,' similar to hertz.","2. Previously used as a unit in physics to measure frequency."]},{"w":"islet","h":["1. A small island, often found in rivers or lakes.","2. Smaller than a typical island, sometimes rocky or sandy."]},{"w":"niece","h":["1. The daughter of one's brother or sister.","2. Relationship term for a female relative of the next generation."]},{"w":"clasp","h":["1. A device used for holding objects firmly together.","2. Often found on jewelry pieces to fasten them closed."]},{"w":"hot__","h":["1. A descriptive term for high temperature or spiciness.","2. Often used in culinary contexts or weather forecasts."]}]},{"a":[{"w":"teen_","h":["1. A young person between 13 and 19.","2. Prefix for words relating to adolescence."]},{"w":"allay","h":["1. To lessen fear, apprehension, or worry.","2. A word meaning to calm or soothe."]},{"w":"glove","h":["1. A hand covering for warmth or protection.","2. Often worn when it's cold outside or during certain sports."]},{"w":"__pal","h":["1. A good friend or buddy.","2. Can be found after words for specific activities, like \"gym\"."]},{"w":"__ell","h":["1. Measurement unit that's also a letter in the alphabet.","2. Often found in the corner when making 90 degrees."]}],"d":[{"w":"tag__","h":["1. A label or piece of identification attached to something.","2. Can be part of a game where someone is \"it\"."]},{"w":"ell__","h":["1. Corner angle in architecture or sewing.","2. Often refers to a specific letter shape or angled extension."]},{"w":"elope","h":["1. To run away secretly for marriage purposes.","2. Often used when describing a secret wedding escapade."]},{"w":"naval","h":["1. Related to the sea or navy.","2. Often associated with military fleets or warfare at sea."]},{"w":"_yell","h":["1. A loud utterance or scream.","2. Often done when trying to get attention across distances."]}]},{"a":[{"w":"_bran","h":["1. The outer layer of a cereal grain, often used in healthy breakfast options.","2. This word refers to the husk surrounding cereal grains."]},{"w":"alone","h":["1. Being by oneself, without others present.","2. A state of solitude or being without company."]},{"w":"gauge","h":["1. Instrument for measuring or testing.","2. You can use this tool to assess the amount or level of something substantial."]},{"w":"edged","h":["1. Having a definite border or boundary.","2. This word describes something that has a distinct boundary or is bordered."]},{"w":"_eel_","h":["1. A long, snakelike fish often found in both fresh and saltwater.","2. In sushi, it's known as unagi."]}],"d":[{"w":"_age_","h":["1. The length of time someone has lived or something has existed.","2. This word is often used to describe an era or period of life."]},{"w":"blade","h":["1. The sharp, flat part of a knife or tool.","2. This is what makes a knife effective for cutting."]},{"w":"rouge","h":["1. A red cosmetic typically applied to the cheeks.","2. This French word implies a red or pinkish color, often used in makeup."]},{"w":"angel","h":["1. A celestial being often depicted as a messenger in religious texts.","2. This word refers to beings characterized by purity and often depicted with wings."]},{"w":"need_","h":["1. To require something because it is essential for survival or function.","2. This word signifies a necessity, often paralleled with what one lacks."]}]},{"a":[{"w":"_yen_","h":["1. This is the basic monetary unit of Japan.","2. A strong desire or craving."]},{"w":"bolo_","h":["1. Type of tie consisting of a cord with decorative clasp.","2. A Filipino machete used as an agricultural tool."]},{"w":"ardor","h":["1. Great warmth or intensity of emotion.","2. Synonym for passion or enthusiasm."]},{"w":"geese","h":["1. Plural form of a bird known for migrations.","2. A gaggle of this bird is often seen flying in V-formation."]},{"w":"__red","h":["1. Primary color associated with stop signs.","2. Can also describe something that is communist."]}],"d":[{"w":"_bag_","h":["1. A container made of flexible material with an opening at the top.","2. Often used for carrying goods or personal items."]},{"w":"yore_","h":["1. A poetic term referring to times long past.","2. Often follows the phrase \"days of\"."]},{"w":"elder","h":["1. Refers to someone of greater age or seniority.","2. A type of berry and also a mythical race in fantasy fiction."]},{"w":"noose","h":["1. A loop with a slipknot that binds tighter under pressure.","2. Associated with hangings in a grim historical context."]},{"w":"__red","h":["1. A synonym for crimson or scarlet.","2. Related to a particular color on the national flags of many countries."]}]},{"a":[{"w":"__mug","h":["1. Something you drink coffee from.","2. A term for a thief's photograph."]},{"w":"plane","h":["1. Another term for an aircraft.","2. A tool for smoothing wood surfaces."]},{"w":"audit","h":["1. A careful examination of financial records.","2. A formal inspection often done by accounting teams."]},{"w":"slat_","h":["1. A thin, narrow strip of wood or metal.","2. Part of a window blind that rotates."]},{"w":"sum__","h":["1. The result of adding numbers.","2. A total as a result of addition."]}],"d":[{"w":"_pass","h":["1. A permission slip or document allowing entry.","2. Another word for succeed in a test."]},{"w":"_lulu","h":["1. An informal term for an outstanding example.","2. A name often used to describe something remarkable."]},{"w":"madam","h":["1. A polite way to address a woman.","2. A managerial figure in an establishment."]},{"w":"unit_","h":["1. A single complete thing or quantity.","2. One segment of a larger structure or group."]},{"w":"get__","h":["1. To acquire or receive something.","2. A simple term for understanding."]}]}];
+
+    // === GAME STATE ===
+    const SIZE = 5;
+    let puzzle, grid, cells, currentRow=0, currentCol=0, currentDir='a'; // 'a'=across 'd'=down
+    let startTime, hintIndex = 0; // for hint variation cycling
+    let wordList = []; // ordered list of all words: across first, then down
+
+    const $ = id => document.getElementById(id);
+    const gridEl = $('grid');
+
+    // === I18N ===
+    const I18N = {
+      sl: {
+        home: 'Domov',
+        selectCell: 'izberi polje',
+        tapToStart: 'Pritisni polje za začetek.',
+        across: 'vodoravno',
+        down: 'navpično',
+        otherVersion: 'druga verzija',
+        otherVersionTitle: 'Druga različica namiga',
+        check: 'Preveri',
+        revealLetter: 'Razkrij črko',
+        revealWord: 'Razkrij besedo',
+        clear: 'Počisti',
+        new: 'Nova',
+        headingAcross: 'Vodoravno',
+        headingDown: 'Navpično',
+        win: 'Bravo!',
+        solvedIn: 'Rešeno v',
+        another: 'Še ena',
+        confirmClear: 'Počistim vsa polja?',
+        keySwap: '↕ smer',
+        prevWordTitle: 'prejšnja beseda',
+        nextWordTitle: 'naslednja beseda',
+        swapDirTitle: 'Zamenjaj smer (vodoravno/navpično)',
+        langToggle: 'EN'
+      },
+      en: {
+        home: 'Home',
+        selectCell: 'select a cell',
+        tapToStart: 'Tap a cell to start.',
+        across: 'across',
+        down: 'down',
+        otherVersion: 'other version',
+        otherVersionTitle: 'Different version of the hint',
+        check: 'Check',
+        revealLetter: 'Reveal letter',
+        revealWord: 'Reveal word',
+        clear: 'Clear',
+        new: 'New',
+        headingAcross: 'Across',
+        headingDown: 'Down',
+        win: 'Well done!',
+        solvedIn: 'Solved in',
+        another: 'Another',
+        confirmClear: 'Clear all cells?',
+        keySwap: '↕ dir',
+        prevWordTitle: 'previous word',
+        nextWordTitle: 'next word',
+        swapDirTitle: 'Toggle direction (across/down)',
+        langToggle: 'SL'
+      }
+    };
+    let lang = 'sl';
+    const T = (k) => (I18N[lang] && I18N[lang][k]) || k;
+
+    function applyLang() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = T(el.dataset.i18n);
+      });
+      document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        el.title = T(el.dataset.i18nTitle);
+      });
+      $('lang-toggle').textContent = T('langToggle');
+      $('prev-word').title = T('prevWordTitle');
+      $('next-word').title = T('nextWordTitle');
+      $('swap-dir').title = T('swapDirTitle');
+      // Re-render dynamic pieces
+      if (puzzle) {
+        updateCurrentHint();
+        buildHintLists();
+        updateHintListActive();
+      }
+    }
+
+    // Strip a leading "1. " / "2. " prefix from a hint string
+    function cleanHint(s) {
+      return (s || '').replace(/^\s*\d+\.\s*/, '').trim();
+    }
+
+    function newPuzzle(idx) {
+      hintIndex = 0;
+      const i = idx ?? Math.floor(Math.random() * PUZZLES.length);
+      puzzle = PUZZLES[i];
+      $('puzzle-counter').textContent = String(i+1).padStart(3,'0') + ' / ' + PUZZLES.length;
+
+      buildGrid();
+      buildWordList();
+      buildHintLists();
+      // Pick first non-black cell
+      for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++) {
+        if (!isBlack(r,c)) { select(r,c,'a'); startTime = Date.now(); return; }
+      }
+    }
+
+    // Build ordered list of all words: across rows first, then down cols
+    function buildWordList() {
+      wordList = [];
+      // Across — one per row
+      for (let r=0; r<SIZE; r++) {
+        let len = 0, firstC = -1;
+        for (let c=0; c<SIZE; c++) {
+          if (!isBlack(r,c)) { len++; if (firstC < 0) firstC = c; }
+        }
+        if (len >= 2) wordList.push({ dir: 'a', row: r, col: firstC });
+      }
+      // Down — one per col
+      for (let c=0; c<SIZE; c++) {
+        let len = 0, firstR = -1;
+        for (let r=0; r<SIZE; r++) {
+          if (!isBlack(r,c)) { len++; if (firstR < 0) firstR = r; }
+        }
+        if (len >= 2) wordList.push({ dir: 'd', row: firstR, col: c });
+      }
+    }
+
+    // Find the index in wordList for the currently selected word
+    function currentWordIndex() {
+      if (currentDir === 'a') {
+        return wordList.findIndex(w => w.dir === 'a' && w.row === currentRow);
+      } else {
+        return wordList.findIndex(w => w.dir === 'd' && w.col === currentCol);
+      }
+    }
+
+    function isWordCellsAllFilled(cellsArr) {
+      return cellsArr.every(({r,c}) => getLetter(r,c));
+    }
+
+    function isCurrentWordComplete() {
+      return isWordCellsAllFilled(getWordCells(currentRow, currentCol, currentDir));
+    }
+
+    function goToWord(w, preferEmpty=true) {
+      const wc = getWordCells(w.row, w.col, w.dir);
+      let target = wc[0];
+      if (preferEmpty) {
+        const empty = wc.find(({r,c}) => !getLetter(r,c));
+        if (empty) target = empty;
+      }
+      select(target.r, target.c, w.dir);
+    }
+
+    // Manual nav: cycle to prev/next word in wordList
+    function nextWord(direction) {
+      if (!wordList.length) return;
+      const cur = currentWordIndex();
+      const next = ((cur < 0 ? 0 : cur) + direction + wordList.length) % wordList.length;
+      goToWord(wordList[next]);
+    }
+
+    // Auto-advance: jump to next word that still has empty cells
+    function advanceToNextIncomplete() {
+      if (!wordList.length) return;
+      const cur = currentWordIndex();
+      for (let step = 1; step <= wordList.length; step++) {
+        const idx = ((cur < 0 ? -1 : cur) + step + wordList.length) % wordList.length;
+        const w = wordList[idx];
+        const wc = getWordCells(w.row, w.col, w.dir);
+        if (!isWordCellsAllFilled(wc)) {
+          goToWord(w, true);
+          return;
+        }
+      }
+      // all filled — stay (win check will fire)
+    }
+
+    function isBlack(r, c) {
+      const ch = puzzle.a[r].w[c];
+      return ch === '_';
+    }
+
+    function answerAt(r, c) {
+      return puzzle.a[r].w[c].toUpperCase();
+    }
+
+    // word indices: which across word starts at (r,c)? Returns {across:idx, down:idx} for word START
+    function wordNumberMap() {
+      // For this format every row has one across word (or none if all underscores)
+      // and every column has one down word.
+      // Number = first cell of that word (smallest col with non-_ in across, smallest row in down).
+      const map = {}; // key 'r,c' -> {a: idx, d: idx} (1-based across# / down#)
+      let aNum = 0, dNum = 0;
+      const aStart = []; // [{r,c,idx}]
+      const dStart = [];
+      for (let r=0; r<SIZE; r++) {
+        for (let c=0; c<SIZE; c++) {
+          if (isBlack(r,c)) continue;
+          // start of across word: leftmost non-black in row, AND there is at least one cell to the right that is also non-black
+          if ((c===0 || isBlack(r,c-1))) {
+            // count word length to right
+            let len = 0;
+            for (let cc=c; cc<SIZE && !isBlack(r,cc); cc++) len++;
+            if (len >= 2) {
+              aNum++;
+              aStart.push({r,c,idx:aNum});
+            }
+          }
+          if ((r===0 || isBlack(r-1,c))) {
+            let len = 0;
+            for (let rr=r; rr<SIZE && !isBlack(rr,c); rr++) len++;
+            if (len >= 2) {
+              dNum++;
+              dStart.push({r,c,idx:dNum});
+            }
+          }
+        }
+      }
+      return { aStart, dStart };
+    }
+
+    function buildGrid() {
+      gridEl.innerHTML = '';
+      cells = [];
+      const { aStart, dStart } = wordNumberMap();
+      const numAt = (r,c) => {
+        const a = aStart.find(s => s.r===r && s.c===c);
+        const d = dStart.find(s => s.r===r && s.c===c);
+        // In standard crosswords the same cell shares one number.
+        // Here word-row maps to across-N and word-col maps to down-N independently,
+        // so we display the across# if present, else down#.
+        if (a) return a.idx;
+        if (d) return d.idx;
+        return null;
+      };
+
+      for (let r=0; r<SIZE; r++) {
+        for (let c=0; c<SIZE; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+          if (isBlack(r,c)) {
+            cell.classList.add('black');
+          } else {
+            const n = numAt(r,c);
+            if (n !== null) {
+              const numEl = document.createElement('span');
+              numEl.className = 'cell-num';
+              numEl.textContent = n;
+              cell.appendChild(numEl);
+            }
+            const txt = document.createElement('span');
+            txt.className = 'letter';
+            cell.appendChild(txt);
+            cell.addEventListener('click', () => onCellClick(r,c));
+          }
+          gridEl.appendChild(cell);
+          cells.push(cell);
+        }
+      }
+    }
+
+    function cellEl(r,c){ return cells[r*SIZE + c]; }
+    function letterEl(r,c){ return cellEl(r,c).querySelector('.letter'); }
+
+    function onCellClick(r, c) {
+      if (isBlack(r,c)) return;
+      // If clicking same cell, flip direction (if possible in other direction)
+      if (currentRow===r && currentCol===c) {
+        const otherDir = currentDir === 'a' ? 'd' : 'a';
+        if (canMoveInDir(r,c, otherDir)) currentDir = otherDir;
+      } else {
+        // pick a direction that has length > 1 at this cell
+        if (!canMoveInDir(r,c, currentDir)) {
+          currentDir = currentDir === 'a' ? 'd' : 'a';
+        }
+      }
+      select(r, c, currentDir);
+    }
+
+    function canMoveInDir(r,c,dir) {
+      if (dir === 'a') {
+        // any other non-black cell in same row
+        for (let cc=0; cc<SIZE; cc++) if (cc!==c && !isBlack(r,cc)) return true;
+        return false;
+      } else {
+        for (let rr=0; rr<SIZE; rr++) if (rr!==r && !isBlack(rr,c)) return true;
+        return false;
+      }
+    }
+
+    function select(r, c, dir) {
+      currentRow = r; currentCol = c; currentDir = dir;
+      hintIndex = 0;
+      // clear highlights
+      cells.forEach(el => el.classList.remove('selected', 'in-word'));
+      // highlight current word
+      getWordCells(r,c,dir).forEach(({r,c}) => cellEl(r,c).classList.add('in-word'));
+      cellEl(r,c).classList.add('selected');
+      updateCurrentHint();
+      updateHintListActive();
+    }
+
+    function getWordCells(r, c, dir) {
+      const out = [];
+      if (dir === 'a') {
+        // expand left and right
+        let c1=c; while (c1>0 && !isBlack(r,c1-1)) c1--;
+        let c2=c; while (c2<SIZE-1 && !isBlack(r,c2+1)) c2++;
+        for (let cc=c1; cc<=c2; cc++) out.push({r, c:cc});
+      } else {
+        let r1=r; while (r1>0 && !isBlack(r1-1,c)) r1--;
+        let r2=r; while (r2<SIZE-1 && !isBlack(r2+1,c)) r2++;
+        for (let rr=r1; rr<=r2; rr++) out.push({r:rr, c});
+      }
+      return out;
+    }
+
+    function getWordEntry(r, c, dir) {
+      // For our simple layout: across[r] is the row word, down[c] is the column word.
+      return dir === 'a' ? puzzle.a[r] : puzzle.d[c];
+    }
+
+    function updateCurrentHint() {
+      const entry = getWordEntry(currentRow, currentCol, currentDir);
+      const hints = entry.h;
+      const hint = cleanHint(hints[hintIndex % hints.length]);
+      const dirLabel = currentDir === 'a' ? T('across') : T('down');
+      const idx = currentDir === 'a' ? acrossIndexFromRow(currentRow) : downIndexFromCol(currentCol);
+      $('current-label').textContent = `${idx} ${dirLabel}`;
+      $('current-hint').textContent = hint;
+    }
+
+    function acrossIndexFromRow(r) {
+      // Count which across-numbered row this is
+      let n = 0;
+      for (let rr=0; rr<=r; rr++) {
+        // does this row have a word of length >= 2?
+        let len = 0;
+        for (let cc=0; cc<SIZE; cc++) if (!isBlack(rr,cc)) len++;
+        if (len >= 2) n++;
+      }
+      return n;
+    }
+    function downIndexFromCol(c) {
+      let n = 0;
+      for (let cc=0; cc<=c; cc++) {
+        let len = 0;
+        for (let rr=0; rr<SIZE; rr++) if (!isBlack(rr,cc)) len++;
+        if (len >= 2) n++;
+      }
+      return n;
+    }
+
+    // Escape HTML so hint text can't break the DOM
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    function buildHintLists() {
+      const aList = $('across-hints');
+      const dList = $('down-hints');
+      aList.innerHTML = '';
+      dList.innerHTML = '';
+      let aN = 0, dN = 0;
+      puzzle.a.forEach((entry, r) => {
+        let len = 0;
+        for (let cc=0; cc<SIZE; cc++) if (entry.w[cc] !== '_') len++;
+        if (len < 2) return;
+        aN++;
+        const li = document.createElement('li');
+        li.dataset.r = r;
+        li.innerHTML = `<span class="hint-num">${aN}</span><span>${esc(cleanHint(entry.h[0]))}</span>`;
+        // find a non-black cell in this row to focus
+        let firstC = 0;
+        for (let cc=0; cc<SIZE; cc++) if (entry.w[cc]!=='_') { firstC = cc; break; }
+        li.addEventListener('click', () => select(r, firstC, 'a'));
+        aList.appendChild(li);
+      });
+      puzzle.d.forEach((entry, c) => {
+        let len = 0;
+        for (let rr=0; rr<SIZE; rr++) if (entry.w[rr] !== '_') len++;
+        if (len < 2) return;
+        dN++;
+        const li = document.createElement('li');
+        li.dataset.c = c;
+        li.innerHTML = `<span class="hint-num">${dN}</span><span>${esc(cleanHint(entry.h[0]))}</span>`;
+        let firstR = 0;
+        for (let rr=0; rr<SIZE; rr++) if (entry.w[rr]!=='_') { firstR = rr; break; }
+        li.addEventListener('click', () => select(firstR, c, 'd'));
+        dList.appendChild(li);
+      });
+    }
+
+    function updateHintListActive() {
+      $('across-hints').querySelectorAll('li').forEach(li => {
+        li.classList.toggle('active', currentDir==='a' && +li.dataset.r === currentRow);
+      });
+      $('down-hints').querySelectorAll('li').forEach(li => {
+        li.classList.toggle('active', currentDir==='d' && +li.dataset.c === currentCol);
+      });
+    }
+
+    // ── Input handling ──
+    function setLetter(r, c, ch) {
+      const lEl = letterEl(r,c);
+      const cEl = cellEl(r,c);
+      cEl.classList.remove('wrong'); // typing clears wrong
+      // keep 'revealed' if already revealed; otherwise normal
+      lEl.textContent = ch;
+      cEl.classList.add('pop');
+      setTimeout(() => cEl.classList.remove('pop'), 180);
+    }
+
+    function getLetter(r, c) {
+      return letterEl(r,c).textContent || '';
+    }
+
+    function moveNext() {
+      const wordCells = getWordCells(currentRow, currentCol, currentDir);
+      const idx = wordCells.findIndex(({r,c}) => r===currentRow && c===currentCol);
+      // Find next empty cell in word, else next cell, else stay
+      for (let i=idx+1; i<wordCells.length; i++) {
+        const {r,c} = wordCells[i];
+        if (!getLetter(r,c)) { select(r,c,currentDir); return; }
+      }
+      // wrap: if all filled, just go to next cell
+      if (idx < wordCells.length - 1) {
+        const {r,c} = wordCells[idx+1];
+        select(r,c,currentDir);
+      }
+    }
+
+    function movePrev() {
+      const wordCells = getWordCells(currentRow, currentCol, currentDir);
+      const idx = wordCells.findIndex(({r,c}) => r===currentRow && c===currentCol);
+      if (idx > 0) {
+        const {r,c} = wordCells[idx-1];
+        select(r,c,currentDir);
+      }
+    }
+
+    function moveDir(dr, dc) {
+      let r = currentRow + dr, c = currentCol + dc;
+      while (r>=0 && r<SIZE && c>=0 && c<SIZE) {
+        if (!isBlack(r,c)) {
+          // possibly switch direction
+          const newDir = (dr !== 0) ? 'd' : 'a';
+          if (canMoveInDir(r,c,newDir)) select(r,c,newDir);
+          else select(r,c,currentDir);
+          return;
+        }
+        r += dr; c += dc;
+      }
+    }
+
+    function handleKey(key) {
+      if (/^[a-zA-Z]$/.test(key)) {
+        setLetter(currentRow, currentCol, key.toUpperCase());
+        // If the just-typed letter completed the word, jump to next incomplete word.
+        // Otherwise, move to next empty cell within current word.
+        if (isCurrentWordComplete()) {
+          advanceToNextIncomplete();
+        } else {
+          moveNext();
+        }
+        checkWin();
+      } else if (key === 'Backspace') {
+        const cur = getLetter(currentRow, currentCol);
+        if (cur) {
+          letterEl(currentRow, currentCol).textContent = '';
+          cellEl(currentRow, currentCol).classList.remove('wrong');
+        } else {
+          movePrev();
+          letterEl(currentRow, currentCol).textContent = '';
+          cellEl(currentRow, currentCol).classList.remove('wrong');
+        }
+      } else if (key === 'ArrowRight') moveDir(0, 1);
+      else if  (key === 'ArrowLeft')  moveDir(0, -1);
+      else if  (key === 'ArrowDown')  moveDir(1, 0);
+      else if  (key === 'ArrowUp')    moveDir(-1, 0);
+      else if  (key === 'Tab' || key === ' ') {
+        // toggle direction
+        const otherDir = currentDir === 'a' ? 'd' : 'a';
+        if (canMoveInDir(currentRow, currentCol, otherDir)) select(currentRow, currentCol, otherDir);
+      }
+    }
+
+    // Hardware keyboard (desktop)
+    document.addEventListener('keydown', e => {
+      // ignore if focus is in a real input (e.g., a future search box)
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab',' '].includes(e.key)) e.preventDefault();
+      handleKey(e.key);
+    });
+
+    // On-screen keyboard
+    document.querySelectorAll('.key').forEach(btn => {
+      // Use mousedown so we don't lose selected cell to focus changes,
+      // and preventDefault to keep buttons from grabbing focus.
+      btn.addEventListener('mousedown', e => e.preventDefault());
+      btn.addEventListener('click', () => {
+        const k = btn.dataset.k;
+        btn.classList.add('pressed');
+        setTimeout(() => btn.classList.remove('pressed'), 100);
+        if (k === 'BACK') handleKey('Backspace');
+        else if (k === 'SWAP') handleKey(' ');
+        else handleKey(k);
+      });
+    });
+
+    // ── Buttons ──
+    $('btn-check').addEventListener('click', () => {
+      let allCorrect = true, anyTyped = false;
+      for (let r=0; r<SIZE; r++) for (let c=0; c<SIZE; c++) {
+        if (isBlack(r,c)) continue;
+        const cur = getLetter(r,c);
+        const target = answerAt(r,c);
+        if (!cur) { allCorrect = false; continue; }
+        anyTyped = true;
+        if (cur === target) {
+          // don't mark correct visually unless full puzzle
+        } else {
+          cellEl(r,c).classList.add('wrong');
+          allCorrect = false;
+        }
+      }
+      if (allCorrect && anyTyped) celebrate();
+    });
+
+    $('btn-reveal-letter').addEventListener('click', () => {
+      const ans = answerAt(currentRow, currentCol);
+      letterEl(currentRow, currentCol).textContent = ans;
+      cellEl(currentRow, currentCol).classList.remove('wrong');
+      cellEl(currentRow, currentCol).classList.add('revealed');
+      if (isCurrentWordComplete()) {
+        advanceToNextIncomplete();
+      } else {
+        moveNext();
+      }
+      checkWin();
+    });
+
+    $('btn-reveal-word').addEventListener('click', () => {
+      const wordCells = getWordCells(currentRow, currentCol, currentDir);
+      wordCells.forEach(({r,c}) => {
+        letterEl(r,c).textContent = answerAt(r,c);
+        cellEl(r,c).classList.remove('wrong');
+        cellEl(r,c).classList.add('revealed');
+      });
+      // Word is now complete — move on to the next incomplete word
+      advanceToNextIncomplete();
+      checkWin();
+    });
+
+    $('btn-clear').addEventListener('click', () => {
+      if (!confirm(T('confirmClear'))) return;
+      for (let r=0; r<SIZE; r++) for (let c=0; c<SIZE; c++) {
+        if (isBlack(r,c)) continue;
+        letterEl(r,c).textContent = '';
+        cellEl(r,c).classList.remove('wrong','revealed');
+      }
+    });
+
+    $('btn-new').addEventListener('click', () => newPuzzle());
+    $('win-new').addEventListener('click', () => { hideWin(); newPuzzle(); });
+    $('overlay').addEventListener('click', hideWin);
+
+    $('swap-hint').addEventListener('click', () => {
+      hintIndex++;
+      updateCurrentHint();
+    });
+
+    // Word navigation arrows
+    $('prev-word').addEventListener('click', () => nextWord(-1));
+    $('next-word').addEventListener('click', () => nextWord(1));
+    // Direction toggle (across <-> down)
+    $('swap-dir').addEventListener('click', () => handleKey(' '));
+
+    // Language toggle
+    $('lang-toggle').addEventListener('click', () => {
+      lang = (lang === 'sl') ? 'en' : 'sl';
+      applyLang();
+    });
+
+    // ── Win check ──
+    function checkWin() {
+      for (let r=0; r<SIZE; r++) for (let c=0; c<SIZE; c++) {
+        if (isBlack(r,c)) continue;
+        if (getLetter(r,c) !== answerAt(r,c)) return;
+      }
+      celebrate();
+    }
+
+    function celebrate() {
+      const elapsed = Date.now() - startTime;
+      const min = Math.floor(elapsed / 60000);
+      const sec = Math.floor((elapsed % 60000) / 1000);
+      $('win-stats').textContent = `${T('solvedIn')} ${min}:${String(sec).padStart(2,'0')}`;
+      $('win-banner').classList.add('show');
+      $('overlay').classList.add('show');
+      // mark all cells correct color
+      for (let r=0; r<SIZE; r++) for (let c=0; c<SIZE; c++) {
+        if (isBlack(r,c)) continue;
+        cellEl(r,c).classList.add('correct');
+      }
+    }
+    function hideWin() {
+      $('win-banner').classList.remove('show');
+      $('overlay').classList.remove('show');
+    }
+
+    // === START ===
+    applyLang();
+    newPuzzle();
+  </script>
+</body>
+</html>
